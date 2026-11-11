@@ -1,0 +1,16 @@
+{
+  "name": "Screw Jam 3D: Nuts & Bolts",
+  "short_name": "Screw Jam 3D",
+  "description": "Unscrew bolts, drop metal plates and solve satisfying 3D puzzles. Works offline.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#F4EFEA",
+  "theme_color": "#F4EFEA",
+  "icons": [
+    {"src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png"},
+    {"src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png"},
+    {"src": "icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable"}
+  ]
+}

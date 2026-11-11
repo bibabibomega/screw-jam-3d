@@ -10,13 +10,16 @@ Font Fredoka tải từ Google Fonts khi có mạng, nếu không có thì dùng
 - `index.html`: toàn bộ game (HTML, CSS, JS). Phần "LEVELS" ở đầu file là code thuần JS (dữ liệu màn, bộ giải, sinh màn), không phụ thuộc Three.js.
 - `lib/three.min.js`: thư viện 3D.
 - `STORE-LISTING.md`: tiêu đề, mô tả, từ khóa, ý tưởng ảnh chụp cho Google Play / App Store (tiếng Anh).
-- `store-assets/`: icon 512x512 và 4 ảnh chụp cửa hàng 1080x1920 (`screenshot-1..4.png`), tạo bằng `tools/store-assets.js` rồi `tools/store-assets.py`.
+- `manifest.webmanifest`, `sw.js`, `icons/`: PWA. Trên điện thoại mở trang rồi chọn **Add to Home Screen** để cài như app, chơi offline.
+- `legal/privacy-policy.html` (bản nháp, cần điền tên và email), `STORE-COMPLIANCE.md` (khai báo Data safety, xếp hạng, quảng cáo), `ANDROID-BUILD.md` (đóng gói Capacitor).
+- `store-assets/`: icon 512x512 và 4 ảnh chụp cửa hàng 1080x1920 (`screenshot-1..4.png`), feature graphic 1024x500 (`feature-graphic-1024x500.png`), tạo bằng `tools/store-assets.js` rồi `tools/store-assets.py`.
 - `tools/`: công cụ kiểm thử và tạo kho bố cục / ảnh cửa hàng (cần Node 22+, Python 3 với Pillow, và Chrome).
 
 ## Luật chơi và cách game được kiểm tra
 - Một thanh còn >= 2 ốc: đứng yên. Còn 1 ốc: đung đưa như con lắc quanh ốc đó (tối đa khoảng 52°). Hết ốc: rơi.
 - Ốc bị che nếu có thanh ở tầng cao hơn nằm đè lên vị trí của nó.
 - Ốc cùng màu với hộp hiện tại bay vào hộp, màu khác vào lỗ chờ. Hộp đủ 3 ốc thì bay đi, ốc cùng màu ở lỗ chờ tự vào hộp mới.
+- Hint: bộ giải chỉ ốc nên tháo. Hammer (búa): tháo bất kỳ ốc nào kể cả ốc bị che; 1 búa miễn phí mỗi màn, các lần sau phải xem quảng cáo.
 - Thua khi lỗ chờ đầy và không còn ốc đúng màu hộp nào lấy được. Có nút xem quảng cáo (hiện đang giả lập 3 giây) để +1 lỗ.
 - Level 1-4 làm tay (dễ, dễ, vừa, khó). Từ level 5 game chọn bố cục từ **kho 34 bố cục sinh sẵn** (`LAYOUT_BANK`, tạo bằng `tools/gen-bank.js`, mỗi bố cục đã qua luật hình học), lật gương ngẫu nhiên,
   gán màu và thứ tự hộp theo số màn, rồi **kiểm tra bằng bộ giải rằng màn đó giải được** với đúng số lỗ chờ yêu cầu (chu kỳ 1, 1, 2, 3).
@@ -32,12 +35,15 @@ Trong thư mục `tools/` (sửa đường dẫn `F:/CLAUDE AI/...` nếu bạn 
 
 Các công cụ kiểm thử cần thêm `?debug=1` vào URL để bật các hàm kiểm thử (`window.__sj`); bản người chơi thường không có.
 
-Kết quả lần kiểm thử gần nhất: 70/70 màn liên tiếp (màn 1-70) tự chơi thắng bằng chạm thật, 13/13 tình huống đạt (gồm kiểm tra rò rỉ bộ nhớ qua 40 màn: số geometry GPU không tăng), 100/100 màn sinh tự động đúng độ khó (mỗi màn tạo dưới 30 ms), không có lỗi JavaScript, tải được khi tắt mạng.
+Thêm `node pwa-test.js` (chạy máy chủ cục bộ, kiểm tra service worker, cache và tải lại khi tắt mạng).
+
+Kết quả lần kiểm thử gần nhất: 70 màn liên tiếp tự chơi thắng bằng chạm thật (và 14/14 ở lần chạy cuối sau mọi thay đổi), 18/18 tình huống đạt (thua, quảng cáo, +1 lỗ, gợi ý, búa gỡ, chơi lại, lưu tiến độ, không rò rỉ bộ nhớ), 7/7 kiểm tra PWA, 100/100 màn sinh tự động đúng độ khó, không có lỗi JavaScript.
 
 ## Việc chưa làm (cần làm trước khi phát hành lên cửa hàng)
-- Thay quảng cáo giả lập bằng SDK thật (AdMob) và dùng quảng cáo thử khi phát triển.
-- Chính sách quyền riêng tư (URL), khai báo Data safety, xếp hạng nội dung.
-- Đóng gói thành app (ví dụ Capacitor) và thử trên điện thoại cấu hình thấp thật.
-- Icon và ảnh cửa hàng hiện là bản đầu tiên do tôi dựng, bạn nên xem lại và có thể nhờ người thiết kế làm bản cuối. Cửa hàng cũng cần ảnh chụp ngang cho máy tính bảng nếu bạn muốn.
-- Nội dung: 34 bố cục x lật gương x đổi màu, đủ nhiều cho vài trăm màn nhưng vẫn cùng một kiểu chơi (chồng thanh nghiêng). Muốn kéo dài cần thêm cơ chế mới (thanh xích, bom đếm ngược, ốc bị khóa...).
-- Chưa có: Undo, búa gỡ, bánh xe may mắn, xu, skin. Chưa nghe thử âm thanh trên thiết bị thật, chưa thử cảm ứng và rung trên điện thoại thật.
+- **Bạn phải làm:** điền tên và email vào `legal/privacy-policy.html`; mở tài khoản AdMob và Google Play; chọn Application ID vĩnh viễn.
+- Thay quảng cáo demo bằng AdMob thật: lớp `Ads` đã sẵn sàng nhưng **chưa thử trên thiết bị** (xem `ANDROID-BUILD.md`).
+- Build app Android bằng Capacitor và thử trên điện thoại cấu hình thấp thật (máy này chưa có JDK nên tôi chưa build được).
+- Chưa thử cảm ứng, rung, âm thanh trên điện thoại thật.
+- Icon và ảnh cửa hàng là bản đầu do tôi dựng; nên xem lại hoặc nhờ người thiết kế.
+- Chưa có: Undo, bánh xe may mắn, xu, skin, chuỗi thắng, thử thách hàng ngày.
+- Nội dung: 34 bố cục x lật gương x đổi màu, đủ cho vài trăm màn nhưng vẫn cùng một kiểu chơi (chồng thanh nghiêng). Muốn kéo dài cần cơ chế mới (thanh xích, bom đếm ngược, ốc bị khóa...).

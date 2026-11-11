@@ -4,14 +4,17 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#F4EFEA">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<meta name="apple-mobile-web-app-title" content="Screw Jam 3D">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="description" content="Screw Jam 3D: unscrew bolts, drop metal plates and solve satisfying 3D logic puzzles. Relax and play offline.">
 <title>Screw Jam 3D: Nuts &amp; Bolts Puzzle</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23F4EFEA'/%3E%3Ccircle cx='32' cy='32' r='20' fill='%23FFA801'/%3E%3Cpath d='M20 32h24M32 20v24' stroke='%232d3a36' stroke-width='6' stroke-linecap='round'/%3E%3C/svg%3E">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&display=swap" rel="stylesheet">
 <style>
+  /* Font Fredoka (SIL Open Font License) đặt cùng thư mục: không gọi máy chủ Google, dùng được offline */
+  @font-face{font-family:'Fredoka';font-style:normal;font-weight:500 700;font-display:swap;src:url(lib/fonts/fredoka.woff2) format('woff2')}
   :root{--cream:#F4EFEA;--ink:#3b3a46;--green:#20BF6B;--red:#EB3B5A;--grey:#778CA3;--sat:env(safe-area-inset-top,0px);--sab:env(safe-area-inset-bottom,0px)}
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
   html,body{margin:0;height:100%;background:var(--cream);overflow:hidden;overscroll-behavior:none;font-family:'Fredoka',ui-rounded,'Nunito',system-ui,-apple-system,'Segoe UI',sans-serif;color:var(--ink)}
@@ -32,6 +35,12 @@
   .btn.grey{background:var(--grey)}
   .btn.red{background:var(--red)}
   .btn.amber{background:#FFA801}
+  .btn.hammer{background:#8854D0}
+  .btn.armed{outline:4px solid #2d2a36;animation:pulse .7s infinite alternate}
+  @keyframes pulse{to{transform:scale(1.06)}}
+  .badge{display:inline-block;min-width:20px;padding:0 6px;border-radius:10px;background:#fff;color:#8854D0;font-size:13px;line-height:20px;margin-left:2px}
+  #bottom{gap:8px}
+  #bottom .btn{padding:12px 12px;font-size:15px}
   .btn[disabled]{opacity:.45;cursor:default;pointer-events:none}
   #overlay{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(244,239,234,.72);-webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px)}
   #overlay.show{display:flex}
@@ -53,8 +62,9 @@
 <div id="toast"></div>
 <div id="bottom">
   <button class="btn amber" id="hintBtn">💡 Hint</button>
-  <button class="btn" id="addHole">+1 Slot (Ad)</button>
-  <button class="btn grey" id="replay">↻ Restart</button>
+  <button class="btn hammer" id="hammerBtn">🔨 Hammer <span class="badge" id="hammerBadge">1</span></button>
+  <button class="btn" id="addHole">➕ Slot (Ad)</button>
+  <button class="btn grey" id="replay" aria-label="Restart level">↻</button>
 </div>
 <div id="overlay"><div id="card"><h2 id="ovTitle"></h2><p id="ovText"></p><div id="ovBtns"></div></div></div>
 <div id="fatal">Could not load the 3D engine.<br>Please check your internet connection and reload the page.</div>
@@ -451,7 +461,7 @@ hintRing.renderOrder = 20; hintRing.visible = false; scene.add(hintRing);
    4. TRẠNG THÁI TRÒ CHƠI
    ===================================================================== */
 const MAX_SLOTS = 5, G_PEND = 20, G_FALL = 26;
-const state = {mode:'play', level:0, loadId:0, openSlots:3, boxIdx:0, delivered:0, t:0, idle:0, L:null};
+const state = {hammers:1, hammerArmed:false, mode:'play', level:0, loadId:0, openSlots:3, boxIdx:0, delivered:0, t:0, idle:0, L:null};
 let world = null, plates = [], screws = [], boxes = [], slots = [], confetti = [], hintTarget = null, prefetched = null;
 const QS = new URLSearchParams(location.search);
 const $ = id => document.getElementById(id);
@@ -471,7 +481,7 @@ const TUTORIAL = {
 
 /* ---------- dựng màn chơi ---------- */
 function loadLevel(i){
-  state.loadId++; state.level = i; state.mode = 'play'; state.openSlots = 3; state.boxIdx = 0; state.delivered = 0; state.idle = 0;
+  state.loadId++; state.level = i; state.mode = 'play'; state.hammers = 1; state.hammerArmed = false; state.openSlots = 3; state.boxIdx = 0; state.delivered = 0; state.idle = 0;
   try { if (!QS.has('auto')) localStorage.setItem('sj3d-level', String(i)); } catch(e){}
   if (world) { scene.remove(world); world.traverse(o => { if (o.geometry && o.userData.own) o.geometry.dispose(); }); confetti.forEach(c => c.m.material.dispose()); }
   world = new THREE.Group(); scene.add(world);
@@ -653,6 +663,12 @@ canvas.addEventListener('pointerdown', e => {
   ndc.set(((e.clientX - r.left)/r.width)*2 - 1, -((e.clientY - r.top)/r.height)*2 + 1);
   raycaster.setFromCamera(ndc, camera);
   const hits = raycaster.intersectObjects(screws.filter(s => !s.removed).map(s => s.mesh), true);
+  if (state.hammerArmed) {                          // Búa: tháo BẤT KỲ ốc nào, kể cả ốc đang bị thanh đè. Chọn ốc có tâm gần tia chạm nhất.
+    let best = null, bd = .8;
+    for (const s of screws) { if (s.removed) continue; const d = raycaster.ray.distanceToPoint(s.mesh.position); if (d < bd) { bd = d; best = s; } }
+    if (best) { state.hammerArmed = false; sfx.click(); haptic(30); pullScrew(best); return; }
+    toast('Tap on a screw to smash it'); return;
+  }
   let blocked = null;
   for (const h of hits) {                          // lấy ốc gần nhất mà KHÔNG bị thanh đè
     let o = h.object; while (o && !o.userData.screw) o = o.parent;
@@ -758,6 +774,12 @@ function computeHint(){                  // nước đi tiếp theo theo bộ gi
   const box = boxes[state.boxIdx];
   return box ? (screws.find(s => !s.removed && s.color === box.color && !blockerOf(s)) || null) : null;
 }
+function armHammer(){
+  if (state.mode !== 'play') return;
+  if (state.hammerArmed) { state.hammerArmed = false; updateHud(); toast('Hammer put away'); return; }
+  const arm = () => { state.hammerArmed = true; updateHud(); toast('Hammer ready: tap ANY screw, even covered ones', 3500); };
+  if (state.hammers > 0) { state.hammers--; arm(); } else watchAd(arm);     // 1 búa miễn phí mỗi màn, sau đó xem quảng cáo
+}
 function showHint(){
   if (state.mode !== 'play') return;
   const s = computeHint();
@@ -793,7 +815,7 @@ function onWin(){
   updateHud();
 }
 function onLose(){
-  state.mode = 'lost'; setHint(null); sfx.buzz();
+  state.mode = 'lost'; setHint(null); state.hammerArmed = false; sfx.buzz();
   const btns = [];
   if (state.openSlots < MAX_SLOTS) btns.push(['▶ Watch Ad: +1 Slot', 'btn', () => watchAd(addHole)]);
   btns.push(['Try Again', 'btn red', () => loadLevel(state.level)]);
@@ -804,17 +826,40 @@ function addHole(){
   if (state.openSlots >= MAX_SLOTS) return;
   state.openSlots++; refreshSlots(); updateHud(); toast('+1 slot unlocked!');
 }
-/* Quảng cáo thưởng GIẢ LẬP: đếm ngược 3 giây rồi cộng thưởng. Khi xuất bản, thay bằng SDK quảng cáo thật. */
+/* ---------- QUẢNG CÁO THƯỞNG ----------
+   Ads.showRewarded(onReward, onFail) là điểm duy nhất game gọi quảng cáo. Có 2 nhà cung cấp:
+   - 'demo'  : đếm ngược 3 giây rồi cộng thưởng (dùng cho bản web / lúc phát triển).
+   - 'admob' : khi chạy trong app Capacitor có plugin @capacitor-community/admob. ID bên dưới là ID QUẢNG CÁO THỬ của Google;
+               khi phát hành phải thay bằng ID thật trong AdMob (xem STORE-COMPLIANCE.md). Phần này CHƯA được thử trên thiết bị thật. */
+const AD_CONFIG = {rewardedAndroid:'ca-app-pub-3940256099942544/5224354917', rewardedIos:'ca-app-pub-3940256099942544/1712485313'};
+const Ads = {
+  get provider(){ return (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.AdMob) ? 'admob' : 'demo'; },
+  async showRewarded(onReward, onFail){
+    if (Ads.provider === 'admob') {
+      try {
+        const AdMob = window.Capacitor.Plugins.AdMob, ios = window.Capacitor.getPlatform && window.Capacitor.getPlatform() === 'ios';
+        if (!Ads.ready) { await AdMob.initialize({}); Ads.ready = true; }
+        await AdMob.prepareRewardVideoAd({adId: ios ? AD_CONFIG.rewardedIos : AD_CONFIG.rewardedAndroid});
+        const reward = await AdMob.showRewardVideoAd();
+        if (reward) onReward(); else onFail && onFail();
+      } catch (e) { onFail && onFail(e); }
+      return;
+    }
+    const token = state.loadId; let n = 3; state.mode = 'ad'; updateHud();
+    const tick = () => {
+      if (token !== state.loadId) return;
+      if (n === 0) { hideOverlay(); onReward(); return; }
+      showOverlay('Rewarded ad (demo)', 'Reward in ' + n + '…', []); n--; setTimeout(tick, 1000);
+    };
+    tick();
+  }
+};
 function watchAd(reward){
   if (state.mode === 'ad') return;
-  const token = state.loadId; state.mode = 'ad'; let n = 3; updateHud();
-  const tick = () => {
-    if (token !== state.loadId) return;
-    if (n === 0) { hideOverlay(); state.mode = 'play'; reward(); updateHud(); evaluate(); return; }
-    showOverlay('Rewarded ad (demo)', 'Reward in ' + n + '…', []);
-    n--; setTimeout(tick, 1000);
-  };
-  tick();
+  const token = state.loadId, back = () => { if (token === state.loadId) { hideOverlay(); state.mode = 'play'; updateHud(); evaluate(); } };
+  state.mode = 'ad'; updateHud();
+  Ads.showRewarded(() => { if (token !== state.loadId) return; hideOverlay(); state.mode = 'play'; reward(); updateHud(); evaluate(); },
+                   () => { toast('Ad not available right now. Try again later.'); back(); });
 }
 function showOverlay(title, text, btns){
   $('ovTitle').textContent = title; $('ovText').textContent = text;
@@ -831,9 +876,13 @@ function updateHud(){
   const play = state.mode === 'play';
   $('addHole').disabled = !play || state.openSlots >= MAX_SLOTS;
   $('hintBtn').disabled = !play;
+  $('hammerBtn').disabled = !play;
+  $('hammerBtn').classList.toggle('armed', state.hammerArmed);
+  $('hammerBadge').textContent = state.hammers > 0 ? String(state.hammers) : 'Ad';
 }
 $('addHole').onclick = () => { if (state.mode === 'play' && state.openSlots < MAX_SLOTS) watchAd(addHole); };
 $('hintBtn').onclick = showHint;
+$('hammerBtn').onclick = armHammer;
 $('replay').onclick = () => { if (state.mode !== 'ad') loadLevel(state.level); };
 function paintSound(){ $('sound').textContent = muted ? '🔇' : '🔊'; }
 $('sound').onclick = () => { muted = !muted; try { localStorage.setItem('sj3d-muted', muted ? '1' : '0'); } catch(e){} paintSound(); audio(); };
@@ -911,8 +960,9 @@ async function runAuto(){
 
 loadLevel(state.level);
 requestAnimationFrame(frame);
+if ('serviceWorker' in navigator && /^https?:/.test(location.protocol) && !QS.has('auto') && !QS.has('debug')) navigator.serviceWorker.register('sw.js').catch(() => {});   // cài lên màn hình chính + chơi offline
 if (QS.has('auto')) runAuto();
-if (QS.has('auto') || QS.has('debug')) window.__sj = {state, loadLevel, makeLevel, solvePath, pullScrew, showHint, watchAd, addHole, blockerOf, get hintVisible(){ return hintRing.visible; }, get info(){ return renderer.info.memory; }, get slots(){ return slots; }, get boxes(){ return boxes; }, get screws(){ return screws; }, get plates(){ return plates; }};
+if (QS.has('auto') || QS.has('debug')) window.__sj = {state, loadLevel, makeLevel, solvePath, pullScrew, showHint, watchAd, addHole, blockerOf, armHammer, clickScrew, get hintVisible(){ return hintRing.visible; }, get info(){ return renderer.info.memory; }, get slots(){ return slots; }, get boxes(){ return boxes; }, get screws(){ return screws; }, get plates(){ return plates; }};
 
 })();
 </script>

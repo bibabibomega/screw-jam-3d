@@ -1,0 +1,35 @@
+const {spawn}=require('child_process'), fs=require('fs'), os=require('os'), path=require('path'), http=require('http');
+const ROOT='F:/CLAUDE AI/screw-jam-3d';
+const mime={'.html':'text/html','.js':'text/javascript','.png':'image/png','.webmanifest':'application/manifest+json','.json':'application/json'};
+const srv=http.createServer((q,r)=>{ let f=path.join(ROOT,decodeURIComponent(q.url.split('?')[0])); if(f.endsWith('/')||f===ROOT) f=path.join(ROOT,'index.html'); fs.readFile(f,(e,d)=>{ if(e){r.writeHead(404);r.end();return;} r.writeHead(200,{'content-type':mime[path.extname(f)]||'application/octet-stream'}); r.end(d); }); }).listen(8123);
+const port=9300+Math.floor(Math.random()*500), dir=fs.mkdtempSync(path.join(os.tmpdir(),'cdp-'));
+const chrome=spawn('C:/Program Files/Google/Chrome/Application/chrome.exe',['--headless=new','--disable-gpu','--use-angle=swiftshader','--enable-unsafe-swiftshader','--no-first-run','--remote-debugging-port='+port,'--user-data-dir='+dir,'--window-size=480,900','about:blank'],{stdio:'ignore'});
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+(async()=>{
+  let targets; for(let i=0;i<50;i++){try{targets=await(await fetch(`http://127.0.0.1:${port}/json`)).json();if(targets.find(t=>t.type==='page'))break;}catch(e){}await sleep(300);}
+  const ws=new WebSocket(targets.find(t=>t.type==='page').webSocketDebuggerUrl); await new Promise(r=>ws.onopen=r);
+  let id=0; const pend=new Map(), logs=[];
+  ws.onmessage=m=>{const d=JSON.parse(m.data); if(d.id&&pend.has(d.id)){pend.get(d.id)(d.result||d.error);pend.delete(d.id);} else if(d.method==='Runtime.exceptionThrown') logs.push('EXC '+(d.params.exceptionDetails.exception?.description||d.params.exceptionDetails.text));};
+  const send=(method,params={})=>new Promise(r=>{const i=++id;pend.set(i,r);ws.send(JSON.stringify({id:i,method,params}));});
+  const ev=async e=>{const r=await send('Runtime.evaluate',{expression:e,awaitPromise:true,returnByValue:true});return r.result?r.result.value:r;};
+  const ok=(n,c,x='')=>console.log((c?'PASS ':'FAIL ')+n+(x?'  '+x:''));
+  await send('Runtime.enable'); await send('Page.enable'); await send('Network.enable');
+  await send('Page.navigate',{url:'http://localhost:8123/index.html'}); await sleep(4000);
+  ok('page loads online', (await ev('document.getElementById("level").textContent')).startsWith('LEVEL'));
+  const man=await ev('fetch(document.querySelector("link[rel=manifest]").href).then(r=>r.json()).then(j=>j.name+" / "+j.icons.length+" icons")'); ok('manifest valid', /Screw Jam/.test(man), man);
+  console.log('debug reg:', await ev('navigator.serviceWorker.getRegistration().then(r=>r?JSON.stringify({a:!!r.active,i:!!r.installing,w:!!r.waiting}):"none")'));
+  console.log('debug register:', await ev('navigator.serviceWorker.register("sw.js").then(r=>"registered").catch(e=>"ERR "+e.message)'));
+  console.log('debug sw fetch:', await ev('fetch("sw.js").then(r=>r.status+" "+r.headers.get("content-type"))'));
+  console.log('debug files:', await ev('Promise.all(["./","index.html","lib/three.min.js","manifest.webmanifest","icons/icon-192.png","icons/icon-512.png","icons/icon-180.png"].map(u=>fetch(u).then(r=>u+":"+r.status).catch(e=>u+":ERR"))).then(a=>a.join(" "))'));
+  await sleep(3000);
+  console.log('debug state:', await ev('navigator.serviceWorker.getRegistration().then(r=>r?JSON.stringify({a:r.active&&r.active.state,i:r.installing&&r.installing.state,w:r.waiting&&r.waiting.state}):"none")'));
+  const sw=await ev('Promise.race([navigator.serviceWorker.ready.then(r=>!!r.active), new Promise(r=>setTimeout(()=>r("timeout"),8000))])'); ok('service worker active', sw===true, String(sw));
+  await sleep(1500);
+  const cached=await ev('caches.keys().then(async ks=>{const c=await caches.open(ks[0]);return (await c.keys()).length})'); ok('files cached', cached>=6, 'entries='+cached);
+  await send('Network.emulateNetworkConditions',{offline:true,latency:0,downloadThroughput:0,uploadThroughput:0});
+  await send('Page.navigate',{url:'http://localhost:8123/index.html'}); await sleep(4000);
+  const lvl=await ev('document.getElementById("level")&&document.getElementById("level").textContent'); ok('reload OFFLINE still works', typeof lvl==='string'&&lvl.startsWith('LEVEL'), String(lvl));
+  ok('THREE available offline', (await ev('typeof THREE'))==='object');
+  console.log(logs.length?logs.join('\n'):'no JS errors');
+  ws.close(); chrome.kill(); srv.close(); process.exit(0);
+})().catch(e=>{console.error(e);chrome.kill();srv.close();process.exit(1);});

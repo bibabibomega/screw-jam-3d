@@ -22,7 +22,7 @@ HOW TO PLAY
 • Bolts that match the box on top fly straight in. Every other color waits in a spare slot.
 • Fill a box with 3 bolts to send it off and open the next one.
 • Don't let the spare slots fill up, or the board jams!
-• Stuck? Use a Hint, or watch an optional ad to unlock an extra slot.
+• Stuck? Use a Hint, smash any bolt with the Hammer, or watch an optional ad to unlock an extra slot.
 
 FEATURES
 • Satisfying 3D physics: plates swing on their last bolt and fall with real gravity.
@@ -41,7 +41,7 @@ screw jam, nuts and bolts, screw puzzle, unscrew, pin puzzle, sort puzzle, logic
 - Kept: title, short-description approach, offline claim (the build now bundles Three.js, so it works without internet),
   haptics, satisfying-sound angle, screenshot headline ideas.
 - Changed: the pasted text promised Drill, Shuffle and Extra Hole boosters, "100+ levels" and "new content added weekly".
-  The build has Hint and +1 Slot only, and levels are generated without a fixed count. The text above says only what exists.
+  The build has Hint, Hammer and +1 Slot only, and levels are generated without a fixed count. The text above says only what exists.
 - Not used as written: win-streak rewards, Daily Challenge, hearts/energy, push notifications, skins. These are product
   ideas, not features yet. Add them to the listing only after they ship.
 - Ad creative "Only people with IQ above 120 can solve this" is a risky claim. Google Ads and the Play policy on

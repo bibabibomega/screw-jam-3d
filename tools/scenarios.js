@@ -54,6 +54,16 @@ const sleep=ms=>new Promise(r=>setTimeout(r,ms));
   await ev('document.getElementById("addHole").click()'); await sleep(600);
   ok('+1 Slot button starts ad', await ev('__sj.state.mode')==='ad'); await sleep(3800);
   ok('+1 Slot granted', await ev('__sj.state.openSlots')===4);
+  // 6b) búa gỡ: tháo được cả ốc đang bị che; búa miễn phí 1 lần mỗi màn, lần sau phải xem quảng cáo
+  await ev('__sj.loadLevel(3)'); await sleep(900);
+  const cov=await ev(`(function(){const s=__sj.screws.find(s=>__sj.blockerOf(s)); return s?s.idx:-1;})()`);
+  await ev('__sj.armHammer()'); ok('hammer armed (free use)', await ev('__sj.state.hammerArmed')===true);
+  await ev(`__sj.clickScrew(__sj.screws[${cov}])`); await sleep(500);
+  ok('hammer removes a COVERED screw', await ev(`__sj.screws[${cov}].removed`)===true);
+  ok('hammer disarmed and used up', await ev('__sj.state.hammerArmed')===false && await ev('__sj.state.hammers')===0);
+  await ev('__sj.armHammer()'); await sleep(400);
+  ok('second hammer requires ad', await ev('__sj.state.mode')==='ad'); await sleep(3800);
+  ok('after ad hammer is armed', await ev('__sj.state.hammerArmed')===true && await ev('__sj.state.mode')==='play');
   // 7) next level progression & persistence
   await ev('__sj.loadLevel(4)'); await sleep(500);
   ok('level 5 loads', await ev('__sj.state.level')===4);

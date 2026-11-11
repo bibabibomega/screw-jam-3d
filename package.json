@@ -1,0 +1,11 @@
+{
+  "name": "screw-jam-3d",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Screw Jam 3D: Nuts & Bolts - web puzzle game, wrapped with Capacitor for Android/iOS",
+  "scripts": {
+    "build:www": "node scripts/build-www.js",
+    "sync": "npm run build:www && npx cap sync",
+    "android": "npm run sync && npx cap open android"
+  }
+}
