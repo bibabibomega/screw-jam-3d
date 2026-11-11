@@ -1,0 +1,920 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#F4EFEA">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="description" content="Screw Jam 3D: unscrew bolts, drop metal plates and solve satisfying 3D logic puzzles. Relax and play offline.">
+<title>Screw Jam 3D: Nuts &amp; Bolts Puzzle</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23F4EFEA'/%3E%3Ccircle cx='32' cy='32' r='20' fill='%23FFA801'/%3E%3Cpath d='M20 32h24M32 20v24' stroke='%232d3a36' stroke-width='6' stroke-linecap='round'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{--cream:#F4EFEA;--ink:#3b3a46;--green:#20BF6B;--red:#EB3B5A;--grey:#778CA3;--sat:env(safe-area-inset-top,0px);--sab:env(safe-area-inset-bottom,0px)}
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+  html,body{margin:0;height:100%;background:var(--cream);overflow:hidden;overscroll-behavior:none;font-family:'Fredoka',ui-rounded,'Nunito',system-ui,-apple-system,'Segoe UI',sans-serif;color:var(--ink)}
+  canvas{position:fixed;inset:0;width:100%;height:100%;display:block;touch-action:none;outline:none}
+  #top{position:fixed;top:0;left:0;right:0;display:flex;align-items:center;justify-content:space-between;padding:calc(10px + var(--sat)) 14px 6px;pointer-events:none}
+  #top>*{pointer-events:auto}
+  #mid{text-align:center;line-height:1.05;pointer-events:none!important}
+  #level{font-size:26px;font-weight:700;letter-spacing:.5px}
+  #sub{font-size:13px;font-weight:600;color:var(--grey);margin-top:2px}
+  .pill{background:#fff;border-radius:999px;padding:7px 14px;font-weight:600;font-size:15px;box-shadow:0 2px 0 rgba(0,0,0,.08);white-space:nowrap}
+  .round{width:44px;height:44px;border-radius:50%;border:0;background:#fff;font-size:20px;box-shadow:0 3px 0 rgba(0,0,0,.1);cursor:pointer;color:var(--ink);display:flex;align-items:center;justify-content:center}
+  .round:active{transform:translateY(2px);box-shadow:0 1px 0 rgba(0,0,0,.1)}
+  #toast{position:fixed;top:22%;left:50%;transform:translateX(-50%) translateY(-6px);background:rgba(59,58,70,.92);color:#fff;font-weight:600;font-size:14px;padding:8px 16px;border-radius:999px;opacity:0;pointer-events:none;transition:opacity .25s,transform .25s;max-width:92vw;text-align:center}
+  #toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+  #bottom{position:fixed;bottom:0;left:0;right:0;display:flex;gap:10px;justify-content:center;padding:10px 14px calc(14px + var(--sab))}
+  .btn{border:0;border-radius:16px;padding:12px 16px;font:inherit;font-weight:700;font-size:16px;color:#fff;background:var(--green);box-shadow:0 4px 0 rgba(0,0,0,.18);cursor:pointer;white-space:nowrap}
+  .btn:active{transform:translateY(3px);box-shadow:0 1px 0 rgba(0,0,0,.18)}
+  .btn.grey{background:var(--grey)}
+  .btn.red{background:var(--red)}
+  .btn.amber{background:#FFA801}
+  .btn[disabled]{opacity:.45;cursor:default;pointer-events:none}
+  #overlay{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(244,239,234,.72);-webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px)}
+  #overlay.show{display:flex}
+  #card{background:#fff;border-radius:28px;padding:26px 24px;width:min(86vw,340px);text-align:center;box-shadow:0 10px 0 rgba(0,0,0,.08);animation:pop .25s ease-out}
+  @keyframes pop{from{transform:scale(.88);opacity:0}to{transform:none;opacity:1}}
+  #card h2{margin:0 0 6px;font-size:30px}
+  #card p{margin:0 0 14px;color:var(--grey);font-weight:500;line-height:1.35}
+  #card .btn{display:block;width:100%;margin-top:10px}
+  #fatal{position:fixed;inset:0;display:none;align-items:center;justify-content:center;padding:24px;text-align:center;font-weight:600;font-size:18px}
+</style>
+</head>
+<body>
+<canvas id="c" tabindex="-1"></canvas>
+<div id="top">
+  <button class="round" id="sound" aria-label="Sound on/off">🔊</button>
+  <div id="mid"><div id="level">LEVEL 01</div><div id="sub">&nbsp;</div></div>
+  <div class="pill" id="holes">Slots 3/5</div>
+</div>
+<div id="toast"></div>
+<div id="bottom">
+  <button class="btn amber" id="hintBtn">💡 Hint</button>
+  <button class="btn" id="addHole">+1 Slot (Ad)</button>
+  <button class="btn grey" id="replay">↻ Restart</button>
+</div>
+<div id="overlay"><div id="card"><h2 id="ovTitle"></h2><p id="ovText"></p><div id="ovBtns"></div></div></div>
+<div id="fatal">Could not load the 3D engine.<br>Please check your internet connection and reload the page.</div>
+
+<!-- Three.js r128 đặt cùng thư mục để chơi OFFLINE; nếu thiếu file thì tự tải từ CDN -->
+<script src="lib/three.min.js"></script>
+<script>window.THREE || document.write('<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"><\/script>')</script>
+<script>
+"use strict";
+
+/* =====================================================================
+   1. LEVEL DATA + HÌNH HỌC + BỘ GIẢI (thuần JS, không cần Three.js, test được bằng Node)
+   Plate: id, tâm (x,y), kích thước w×h, góc a (độ), tầng l (lớn = nằm trên), chất liệu m.
+   Screw: nằm trên thanh p, cách tâm t dọc trục thanh và s theo phương vuông góc,
+   c = mã màu, also = các thanh khác mà ốc này xuyên qua (giữ cùng lúc nhiều thanh).
+   ===================================================================== */
+// ==LEVELS==
+const COLORS = {R:0xFF5E57, B:0x3867D6, Y:0xFFA801, G:0x05C46B, P:0x8854D0};
+function mirror(d, order){           // lật gương theo trục dọc để có màn mới từ cùng bố cục
+  return {order:order || d.order,
+    plates:d.plates.map(p => Object.assign({}, p, {x:-p.x, a:-p.a})),
+    screws:d.screws.map(s => Object.assign({}, s, {t:-s.t}))};
+}
+const L2 = {   // 9 ốc, 3 màu, 4 thanh, 1 ốc xuyên 2 thanh
+  order:['Y','R','B'],
+  plates:[
+    {id:'A',x:0.5,y:-1.8,w:9.4,h:1.6,a:0,l:0,m:'wood'},
+    {id:'B',x:-0.5,y:-0.7,w:8,h:1.4,a:-12,l:1,m:'silver'},
+    {id:'C',x:0.6,y:1.6,w:7.2,h:1.4,a:10,l:2,m:'steel'},
+    {id:'D',x:0,y:2.2,w:5.6,h:1.3,a:-8,l:3,m:'wood'}],
+  screws:[
+    {p:'D',t:-2.2,c:'Y'},{p:'D',t:2.2,c:'R'},
+    {p:'C',t:-3.0,c:'B'},{p:'C',t:1.5,c:'Y'},{p:'C',t:3.2,c:'R'},
+    {p:'B',t:-3.0,c:'B'},{p:'B',t:3.0,s:-0.25,c:'Y',also:['A']},
+    {p:'A',t:-4.0,c:'R'},{p:'A',t:4.2,c:'B'}]
+};
+const L3 = {   // 12 ốc, 4 màu, 5 thanh đan chéo, 4 ốc xuyên 2 thanh
+  order:['G','B','Y','R'],
+  plates:[
+    {id:'A',x:0,y:-3.4,w:9.6,h:1.4,a:-6,l:0,m:'silver'},
+    {id:'B',x:0,y:-2.0,w:9.6,h:1.4,a:14,l:1,m:'wood'},
+    {id:'C',x:0,y:-0.6,w:8.8,h:1.4,a:-14,l:2,m:'steel'},
+    {id:'D',x:0,y:0.8,w:8.4,h:1.4,a:14,l:3,m:'wood'},
+    {id:'E',x:0,y:2.2,w:7.6,h:1.3,a:-12,l:4,m:'silver'}],
+  screws:[
+    {p:'E',t:3.1,c:'R',also:['D']},{p:'E',t:-2.6,c:'Y'},{p:'E',t:0.2,c:'Y'},
+    {p:'D',t:-2.89,c:'B',also:['C']},{p:'D',t:0.4,c:'G'},
+    {p:'C',t:2.89,c:'G',also:['B']},{p:'C',t:-0.3,c:'R'},
+    {p:'B',t:-4.07,c:'B',also:['A']},{p:'B',t:-1.2,c:'B'},{p:'B',t:3.4,c:'G'},
+    {p:'A',t:3.8,c:'Y'},{p:'A',t:1.0,c:'R'}]
+};
+// Màu của L3 / L4 đã được bộ giải chọn để đúng độ khó: L3 cần >= 2 lỗ chờ, L4 (choke point) cần đủ 3 lỗ chờ
+L3.order = ['G','B','Y','R'];
+'B,Y,R,Y,B,R,Y,G,R,B,G,G'.split(',').forEach((c, i) => { L3.screws[i].c = c; });
+const L4 = {   // cùng bố cục L3, lật gương
+  order:['B','G','R','Y'],
+  plates:L3.plates,
+  screws:'Y,R,R,R,B,G,Y,B,G,B,Y,G'.split(',').map((c, i) => Object.assign({}, L3.screws[i], {c}))
+};
+const LEVELS = [   // 4 màn thủ công: dễ, dễ, trung bình, khó
+  { // Level 1: 6 ốc, 2 màu, 3 thanh
+    order:['R','B'],
+    plates:[
+      {id:'A',x:0,y:-2.6,w:9.2,h:1.5,a:0,l:0,m:'wood'},
+      {id:'B',x:-0.8,y:0.2,w:7.6,h:1.4,a:12,l:1,m:'silver'},
+      {id:'C',x:1.0,y:1.0,w:6.4,h:1.4,a:-10,l:2,m:'steel'}],
+    screws:[
+      {p:'C',t:-2.5,c:'R'},{p:'C',t:2.5,c:'B'},
+      {p:'B',t:-3.0,c:'R'},{p:'B',t:2.6,c:'B'},
+      {p:'A',t:-3.8,c:'R'},{p:'A',t:3.8,c:'B'}]
+  },
+  L2, L3, mirror(L4)
+];
+function inRect(p, x, y){            // điểm (x,y) có nằm trong hình chữ nhật đã xoay của thanh p không
+  const dx = x - p.x, dy = y - p.y, c = Math.cos(p.ang), s = Math.sin(p.ang);
+  const lx = dx*c + dy*s, ly = -dx*s + dy*c;
+  return Math.abs(lx) <= p.w/2 && Math.abs(ly) <= p.h/2;
+}
+function resolveLevel(def){
+  const plates = def.plates.map(p => ({id:p.id,x:p.x,y:p.y,w:p.w,h:p.h,ang:p.a*Math.PI/180,layer:p.l,mat:p.m}));
+  const byId = {}; plates.forEach(p => byId[p.id] = p);
+  const screws = def.screws.map(s => {
+    const p = byId[s.p], c = Math.cos(p.ang), sn = Math.sin(p.ang), off = s.s || 0;
+    const ids = [s.p].concat(s.also || []);
+    return {x:p.x + s.t*c - off*sn, y:p.y + s.t*sn + off*c, color:s.c,
+            plateIds:ids, layer:Math.max(...ids.map(i => byId[i].layer))};
+  });
+  screws.forEach((s, i) => s.idx = i);
+  return {plates, screws, order:def.order.slice()};
+}
+/* Bộ giải: trả về danh sách chỉ số ốc cần tháo (theo thứ tự) hoặc null nếu không giải được với SLOTS lỗ chờ.
+   Trạng thái: rem = mặt nạ ốc đã rời bàn (gồm cả ốc đang ở lỗ chờ), buf = mặt nạ ốc đang nằm ở lỗ chờ.
+   Mô hình khớp luật game: ốc đúng màu hộp hiện tại bay thẳng vào hộp, ốc khác vào lỗ chờ;
+   khi hộp đầy, hộp mới mở và ốc cùng màu trong lỗ chờ tự bay vào. */
+/* Mô hình che khuất theo tư thế CUỐI CÙNG của thanh (không phụ thuộc người chơi thao tác thế nào):
+   - còn >= 2 ốc giữ: thanh đứng yên ở tư thế ban đầu
+   - còn đúng 1 ốc: thanh đung đưa rồi dừng khi tâm thanh nằm ngay dưới ốc đó (con lắc tắt dần), tối đa SWING_LIMIT
+   - hết ốc: thanh rơi, không che nữa */
+const SWING_LIMIT = 0.9;      // góc xoay tối đa (rad, ~52°) của thanh treo: bị khung/thanh khác chặn lại
+function buildModel(L){
+  const n = L.screws.length;
+  const hold = {}; L.plates.forEach(p => { let m = 0; L.screws.forEach((s, i) => { if (s.plateIds.includes(p.id)) m |= 1 << i; }); hold[p.id] = m; });
+  const pose = (p, k) => {             // tư thế cân bằng của thanh p khi chỉ còn ốc k giữ
+    const s = L.screws[k], dx = s.x - p.x, dy = s.y - p.y, c = Math.cos(-p.ang), sn = Math.sin(-p.ang);
+    const rx = dx*c - dy*sn, ry = dx*sn + dy*c, d = Math.hypot(rx, ry);
+    if (d < 0.05) return p;
+    let delta = Math.PI/2 - Math.atan2(ry, rx) - p.ang;
+    delta = Math.atan2(Math.sin(delta), Math.cos(delta));                       // đưa về (-π, π]
+    delta = Math.max(-SWING_LIMIT, Math.min(SWING_LIMIT, delta));
+    const ang = p.ang + delta, ca = Math.cos(ang), sa = Math.sin(ang);
+    return {x:s.x - (ca*rx - sa*ry), y:s.y - (sa*rx + ca*ry), ang, w:p.w, h:p.h};
+  };
+  const cover = L.screws.map(s => L.plates.filter(p => p.layer > s.layer).map(p => {
+    const e = {mask:hold[p.id], init:inRect(p, s.x, s.y), piv:{}};
+    for (let k = 0; k < n; k++) if ((e.mask >> k) & 1) e.piv[k] = inRect(pose(p, k), s.x, s.y);
+    return e;
+  }));
+  return {n, hold, blocked(i, rem){
+    for (const e of cover[i]) {
+      const left = e.mask & ~rem; if (!left) continue;
+      if (left & (left - 1)) { if (e.init) return true; }
+      else if (e.piv[31 - Math.clz32(left)]) return true;
+    }
+    return false;
+  }};
+}
+function solvePath(L, SLOTS, rem0, buf0, model){      // model: dựng từ tư thế BAN ĐẦU của thanh (trong game phải truyền state.model)
+  rem0 = rem0 || 0; buf0 = buf0 || 0;
+  model = model || buildModel(L); const blocked = model.blocked;
+  const n = L.screws.length, full = (1 << n) - 1, order = L.order;
+  const ci = L.screws.map(s => order.indexOf(s.color));
+  const counts = (rem, buf) => { const c = new Array(order.length).fill(0), d = rem & ~buf; for (let k = 0; k < n; k++) if ((d >> k) & 1) c[ci[k]]++; return c; };
+  function flush(rem, buf){
+    for (;;) {
+      const c = counts(rem, buf); let cur = 0; while (cur < order.length && c[cur] >= 3) cur++;
+      if (cur >= order.length) return buf;
+      let moved = false;
+      for (let k = 0; k < n && c[cur] < 3; k++) if (((buf >> k) & 1) && ci[k] === cur) { buf &= ~(1 << k); c[cur]++; moved = true; }
+      if (!moved) return buf;
+    }
+  }
+  function apply(rem, buf, i){      // trả về [rem', buf'] hoặc null nếu không đi được
+    const c = counts(rem, buf); let cur = 0; while (cur < order.length && c[cur] >= 3) cur++;
+    const r2 = rem | (1 << i);
+    if (ci[i] === cur) return [r2, flush(r2, buf)];
+    let bc = 0; for (let k = 0; k < n; k++) if ((buf >> k) & 1) bc++;
+    return bc >= SLOTS ? null : [r2, buf | (1 << i)];
+  }
+  const memo = new Map(), nxt = new Map();
+  function solve(rem, buf){
+    if (rem === full) return true;
+    const key = rem * 65536 + buf; if (memo.has(key)) return memo.get(key);
+    memo.set(key, false);
+    for (let i = 0; i < n; i++) {
+      if (((rem >> i) & 1) || blocked(i, rem)) continue;
+      const nx = apply(rem, buf, i); if (!nx) continue;
+      if (solve(nx[0], nx[1])) { memo.set(key, true); nxt.set(key, i); return true; }
+    }
+    return false;
+  }
+  if (!solve(rem0, buf0)) return null;
+  const path = []; let rem = rem0, buf = buf0;
+  while (rem !== full) { const i = nxt.get(rem * 65536 + buf); path.push(i); const nx = apply(rem, buf, i); rem = nx[0]; buf = nx[1]; }
+  return path;
+}
+function mulberry32(a){ return function(){ a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+/* Luật hình học để màn nhìn gọn và chơi được: ốc nằm gọn trong thanh, không bị che lấp lửng, không sát nhau,
+   mỗi thanh có >= 2 ốc giữ (khớp mô hình vật lý của bộ giải). Trả về danh sách lỗi (rỗng = tốt). */
+function layoutIssues(L, skipHolders){
+  const out = [], byId = {}; L.plates.forEach(p => byId[p.id] = p);
+  const grow = (q, d) => ({x:q.x, y:q.y, ang:q.ang, w:q.w + d, h:q.h + d});
+  L.screws.forEach((s, i) => {
+    s.plateIds.forEach(id => { if (!inRect(grow(byId[id], -0.8), s.x, s.y)) out.push('margin' + i); });
+    L.plates.forEach(q => {
+      if (q.layer <= s.layer) return;
+      const inside = inRect(q, s.x, s.y);
+      if (!inside && inRect(grow(q, 1.0), s.x, s.y)) out.push('partial' + i);
+      if (inside && !inRect(grow(q, -0.9), s.x, s.y)) out.push('barely' + i);
+    });
+    if (s.x < -5 || s.x > 5 || s.y < -4.6 || s.y > 5.4) out.push('bounds' + i);
+    for (let j = 0; j < i; j++) if (Math.hypot(s.x - L.screws[j].x, s.y - L.screws[j].y) < 1.25) out.push('close' + i + '-' + j);
+  });
+  L.plates.forEach(p => {
+    for (const [sx, sy] of [[1, 1], [1, -1], [-1, 1], [-1, -1]]) {
+      const c = Math.cos(p.ang), s = Math.sin(p.ang), x = p.x + sx*p.w/2*c - sy*p.h/2*s, y = p.y + sx*p.w/2*s + sy*p.h/2*c;
+      if (Math.abs(x) > 5.4 || y < -5 || y > 5.7) out.push('corner' + p.id);
+    }
+    if (!skipHolders && L.screws.filter(s => s.plateIds.includes(p.id)).length < 2) out.push('holders' + p.id);
+  });
+  return out;
+}
+/* Sinh bố cục ngẫu nhiên (theo RNG cố định): chồng 4-5 thanh nghiêng xen kẽ, ốc đặt tại giao điểm các thanh
+   (ốc xuyên 2 thanh) và các vị trí ngẫu nhiên; chỉ nhận bố cục qua mọi luật hình học và có đủ ốc bị che. */
+function genLayout(rng, nS){
+  const nP = nS <= 9 ? 4 : 5, dy = nP === 4 ? 1.55 : 1.3, y0 = nP === 4 ? -2.4 : -2.6, flip = rng() < .5 ? 1 : -1, mats = ['wood', 'silver', 'steel'];
+  const plates = [];
+  for (let i = 0; i < nP; i++) plates.push({id:'ABCDE'[i], x:+((rng() - .5)*1.4).toFixed(2), y:+(y0 + i*dy + (rng() - .5)*.3).toFixed(2),
+    w:+(7.4 + rng()*2.2).toFixed(1), h:+(1.5 + rng()*.5).toFixed(1), a:+(flip*(i % 2 ? 1 : -1)*(6 + rng()*10)).toFixed(1), l:i, m:mats[Math.floor(rng()*3)]});
+  if (layoutIssues(resolveLevel({order:['R'], plates, screws:[]}), true).length) return null;     // thanh lọt ra ngoài bàn
+  const cross = [], free = [], d = Math.PI/180;
+  for (let i = nP - 1; i >= 0; i--) {
+    const P = plates[i];
+    if (i > 0) {
+      const Q = plates[i - 1], dp = [Math.cos(P.a*d), Math.sin(P.a*d)], dq = [Math.cos(Q.a*d), Math.sin(Q.a*d)];
+      const det = dp[0]*(-dq[1]) - dp[1]*(-dq[0]);
+      if (Math.abs(det) > .1) cross.push({p:P.id, t:+(((Q.x - P.x)*(-dq[1]) - (Q.y - P.y)*(-dq[0]))/det).toFixed(2), also:[Q.id]});
+    }
+    for (let k = 0; k < 12; k++) free.push({p:P.id, t:+((rng()*2 - 1)*(P.w/2 - .9)).toFixed(2)});
+  }
+  const sh = a => { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(rng()*(i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+  const chosen = [], tryAdd = c => {
+    if (chosen.length >= nS) return false;
+    const trial = chosen.concat([Object.assign({c:'R'}, c)]), T = resolveLevel({order:['R'], plates, screws:trial});
+    if (layoutIssues(T, true).length) return false;
+    chosen.push(Object.assign({c:'R'}, c)); return true;
+  };
+  const holds = id => chosen.filter(s => s.p === id || (s.also && s.also.includes(id))).length;
+  sh(cross).forEach(tryAdd);                                         // ốc xuyên 2 thanh trước
+  plates.forEach(P => { const mine = sh(free.filter(c => c.p === P.id)); for (const c of mine) { if (holds(P.id) >= 2) break; tryAdd(c); } });   // mỗi thanh >= 2 ốc
+  const under = c => { const P = plates.find(q => q.id === c.p), s = resolveLevel({order:['R'], plates, screws:[Object.assign({c:'R'}, c)]}).screws[0];
+    return plates.some(q => q.l > P.l && inRect({x:q.x, y:q.y, ang:q.a*d, w:q.w, h:q.h}, s.x, s.y)); };
+  sh(free.slice()).sort((x, y) => (under(y) ? 1 : 0) - (under(x) ? 1 : 0) + (rng() - .5)*.8).forEach(tryAdd);   // điền thêm, ưu tiên ốc bị che
+  if (chosen.length !== nS) return null;
+  const L = resolveLevel({order:['R'], plates, screws:chosen});
+  if (layoutIssues(L).length) return null;
+  const covered = L.screws.filter(s => L.plates.some(q => q.layer > s.layer && inRect(q, s.x, s.y))).length;
+  return covered >= 3 ? {plates, screws:chosen} : null;
+}
+/* Màn vô hạn: màn >= 5 sinh bố cục + màu + thứ tự hộp bằng RNG cố định theo số màn, rồi kiểm tra bằng bộ giải
+   để đúng độ khó: chu kỳ dễ -> dễ -> vừa -> khó (cần đủ 3 lỗ chờ) và luôn giải được. */
+const LAYOUT_BANK = [{"plates":[{"id":"A","x":-0.25,"y":-2.32,"w":9.1,"h":1.7,"a":-12.6,"l":0,"m":"wood"},{"id":"B","x":0.14,"y":-0.9,"w":7.8,"h":1.6,"a":10.4,"l":1,"m":"silver"},{"id":"C","x":-0.58,"y":0.77,"w":8.9,"h":1.8,"a":-12.5,"l":2,"m":"steel"},{"id":"D","x":-0.33,"y":2.21,"w":8.2,"h":2,"a":8.5,"l":3,"m":"silver"}],"screws":[{"p":"A","t":-0.06},{"p":"A","t":1.7},{"p":"B","t":-1.08},{"p":"B","t":2.75},{"p":"C","t":0.84},{"p":"C","t":-2.52},{"p":"D","t":2.45},{"p":"D","t":1.15},{"p":"A","t":-2.69}]},{"plates":[{"id":"A","x":-0.61,"y":-2.68,"w":8,"h":1.5,"a":-14.4,"l":0,"m":"wood"},{"id":"B","x":0.37,"y":-1.27,"w":8.1,"h":1.8,"a":8.1,"l":1,"m":"steel"},{"id":"C","x":0.51,"y":-0.15,"w":8.3,"h":2,"a":-13.6,"l":2,"m":"silver"},{"id":"D","x":-0.54,"y":1.39,"w":7.9,"h":1.9,"a":9.6,"l":3,"m":"wood"},{"id":"E","x":0.47,"y":2.62,"w":8.2,"h":1.9,"a":-10.1,"l":4,"m":"steel"}],"screws":[{"p":"C","t":2.95,"also":["B"]},{"p":"A","t":1.23},{"p":"A","t":-2.15},{"p":"B","t":1.62},{"p":"C","t":-0.14},{"p":"D","t":-2.68},{"p":"D","t":2.94},{"p":"E","t":-0.89},{"p":"E","t":0.36},{"p":"D","t":-0.69},{"p":"A","t":2.97},{"p":"E","t":-2.85}]},{"plates":[{"id":"A","x":0.11,"y":-2.52,"w":8.4,"h":1.6,"a":-14.1,"l":0,"m":"wood"},{"id":"B","x":-0.08,"y":-0.87,"w":7.5,"h":1.6,"a":10.2,"l":1,"m":"wood"},{"id":"C","x":-0.53,"y":0.82,"w":9,"h":2,"a":-15.7,"l":2,"m":"wood"},{"id":"D","x":-0.21,"y":2.29,"w":9.5,"h":2,"a":7.8,"l":3,"m":"steel"}],"screws":[{"p":"D","t":-3.77,"also":["C"]},{"p":"A","t":-0.52},{"p":"A","t":3.11},{"p":"B","t":2.25},{"p":"B","t":-0.6},{"p":"C","t":-2.17},{"p":"D","t":-0.09},{"p":"A","t":-3.25},{"p":"D","t":1.61}]},{"plates":[{"id":"A","x":0.17,"y":-2.71,"w":8.2,"h":1.7,"a":13.3,"l":0,"m":"steel"},{"id":"B","x":-0.11,"y":-1.31,"w":8.2,"h":1.6,"a":-7.8,"l":1,"m":"steel"},{"id":"C","x":0.39,"y":0,"w":7.7,"h":1.7,"a":14.1,"l":2,"m":"silver"},{"id":"D","x":-0.56,"y":1.38,"w":9,"h":1.7,"a":-6.9,"l":3,"m":"silver"},{"id":"E","x":-0.21,"y":2.67,"w":8.1,"h":2,"a":8.7,"l":4,"m":"silver"}],"screws":[{"p":"A","t":2.84},{"p":"A","t":-0.38},{"p":"B","t":-2.29},{"p":"B","t":0.6},{"p":"C","t":2.48},{"p":"C","t":-0.37},{"p":"D","t":-2.6},{"p":"D","t":1.52},{"p":"E","t":2.61},{"p":"E","t":0.79},{"p":"E","t":-0.81},{"p":"A","t":-2.36}]},{"plates":[{"id":"A","x":-0.51,"y":-2.29,"w":7.5,"h":1.5,"a":-10.4,"l":0,"m":"silver"},{"id":"B","x":-0.14,"y":-0.91,"w":9.5,"h":1.8,"a":9,"l":1,"m":"silver"},{"id":"C","x":0.64,"y":0.75,"w":9.3,"h":1.8,"a":-15.3,"l":2,"m":"silver"},{"id":"D","x":-0.27,"y":2.34,"w":7.6,"h":1.8,"a":7.3,"l":3,"m":"silver"}],"screws":[{"p":"A","t":1.56},{"p":"A","t":-2.72},{"p":"B","t":-0.16},{"p":"B","t":3.46},{"p":"C","t":0.76},{"p":"C","t":-3.44},{"p":"D","t":2.58},{"p":"D","t":-0.83},{"p":"D","t":1.04}]},{"plates":[{"id":"A","x":-0.09,"y":-2.52,"w":7.7,"h":1.5,"a":8.5,"l":0,"m":"silver"},{"id":"B","x":-0.42,"y":-1.44,"w":7.9,"h":1.6,"a":-6.2,"l":1,"m":"silver"},{"id":"C","x":0.17,"y":-0.1,"w":9.2,"h":1.8,"a":9.2,"l":2,"m":"silver"},{"id":"D","x":0.32,"y":1.43,"w":9,"h":2,"a":-9.3,"l":3,"m":"silver"},{"id":"E","x":0.23,"y":2.59,"w":8.7,"h":2,"a":7.7,"l":4,"m":"wood"}],"screws":[{"p":"E","t":-3.87,"also":["D"]},{"p":"A","t":-2.61},{"p":"A","t":-1.06},{"p":"B","t":1.5},{"p":"B","t":-3},{"p":"C","t":-0.06},{"p":"C","t":-2.5},{"p":"D","t":2.25},{"p":"E","t":1.79},{"p":"C","t":3.58},{"p":"D","t":-2.59},{"p":"E","t":-0.36}]},{"plates":[{"id":"A","x":0.47,"y":-2.68,"w":8,"h":1.6,"a":9.4,"l":0,"m":"wood"},{"id":"B","x":-0.39,"y":-1.28,"w":9,"h":1.7,"a":-11.2,"l":1,"m":"silver"},{"id":"C","x":-0.44,"y":0.12,"w":8.8,"h":1.6,"a":7.3,"l":2,"m":"silver"},{"id":"D","x":0.39,"y":1.32,"w":9.1,"h":1.9,"a":-11.4,"l":3,"m":"wood"},{"id":"E","x":0.32,"y":2.52,"w":8.5,"h":1.7,"a":9.1,"l":4,"m":"steel"}],"screws":[{"p":"E","t":-3.32,"also":["D"]},{"p":"A","t":2.7},{"p":"A","t":-1.86},{"p":"B","t":2.21},{"p":"B","t":0.7},{"p":"C","t":-1.39},{"p":"C","t":2.76},{"p":"D","t":3.6},{"p":"E","t":0.75},{"p":"B","t":-3.47},{"p":"E","t":3.26},{"p":"E","t":-1.1}]},{"plates":[{"id":"A","x":-0.28,"y":-2.62,"w":7.7,"h":1.8,"a":7.4,"l":0,"m":"wood"},{"id":"B","x":0.2,"y":-1.37,"w":9.2,"h":1.7,"a":-9.8,"l":1,"m":"steel"},{"id":"C","x":-0.41,"y":0.1,"w":7.6,"h":2,"a":10.2,"l":2,"m":"steel"},{"id":"D","x":-0.15,"y":1.4,"w":8.8,"h":1.7,"a":-11.3,"l":3,"m":"silver"},{"id":"E","x":0.27,"y":2.58,"w":7.9,"h":1.7,"a":6.6,"l":4,"m":"steel"}],"screws":[{"p":"A","t":-2.65},{"p":"A","t":-1.18},{"p":"B","t":-3.18},{"p":"B","t":3.2},{"p":"C","t":-0.95},{"p":"C","t":2.7},{"p":"D","t":1.12},{"p":"D","t":-2.84},{"p":"E","t":-0.31},{"p":"E","t":-1.58},{"p":"E","t":2.4},{"p":"B","t":1.87}]},{"plates":[{"id":"A","x":0.67,"y":-2.62,"w":8.8,"h":1.8,"a":-11.2,"l":0,"m":"wood"},{"id":"B","x":0.62,"y":-1.23,"w":7.5,"h":1.9,"a":10.3,"l":1,"m":"silver"},{"id":"C","x":-0.14,"y":0.15,"w":9,"h":1.8,"a":-11.4,"l":2,"m":"silver"},{"id":"D","x":0.3,"y":1.4,"w":8.6,"h":1.6,"a":7.8,"l":3,"m":"steel"},{"id":"E","x":0.44,"y":2.54,"w":7.5,"h":2,"a":-15.5,"l":4,"m":"steel"}],"screws":[{"p":"C","t":4.04,"also":["B"]},{"p":"E","t":2.81,"also":["D"]},{"p":"A","t":1.8},{"p":"A","t":-2.53},{"p":"B","t":-0.75},{"p":"C","t":-3.24},{"p":"D","t":-1.53},{"p":"E","t":-0.42},{"p":"D","t":1.49},{"p":"E","t":-2.33},{"p":"C","t":0.83},{"p":"A","t":3.22}]},{"plates":[{"id":"A","x":0.31,"y":-2.6,"w":9.1,"h":1.8,"a":-11.1,"l":0,"m":"silver"},{"id":"B","x":-0.08,"y":-1.4,"w":8.2,"h":1.8,"a":13.7,"l":1,"m":"steel"},{"id":"C","x":-0.32,"y":-0.02,"w":8.2,"h":1.9,"a":-6.3,"l":2,"m":"steel"},{"id":"D","x":-0.2,"y":1.21,"w":7.9,"h":1.9,"a":9.1,"l":3,"m":"steel"},{"id":"E","x":-0.19,"y":2.65,"w":8.4,"h":2,"a":-10.2,"l":4,"m":"steel"}],"screws":[{"p":"B","t":-2.63,"also":["A"]},{"p":"A","t":2.8},{"p":"B","t":2.71},{"p":"C","t":1.03},{"p":"C","t":-2.69},{"p":"D","t":-1.25},{"p":"D","t":2.81},{"p":"E","t":-3},{"p":"E","t":1.32},{"p":"B","t":-0.8},{"p":"E","t":-1.54},{"p":"E","t":-0.13}]},{"plates":[{"id":"A","x":0.01,"y":-2.32,"w":8.6,"h":1.6,"a":-9.6,"l":0,"m":"wood"},{"id":"B","x":-0.41,"y":-0.99,"w":9.4,"h":1.5,"a":10.9,"l":1,"m":"steel"},{"id":"C","x":0.05,"y":0.61,"w":8.6,"h":1.9,"a":-12.2,"l":2,"m":"steel"},{"id":"D","x":0.21,"y":2.17,"w":9.5,"h":2,"a":8.2,"l":3,"m":"steel"}],"screws":[{"p":"C","t":3.78,"also":["B"]},{"p":"A","t":0.59},{"p":"A","t":-3.17},{"p":"B","t":2.96},{"p":"C","t":-2.98},{"p":"D","t":0.4},{"p":"D","t":2.64},{"p":"A","t":3},{"p":"C","t":0.18}]},{"plates":[{"id":"A","x":-0.02,"y":-2.47,"w":9.5,"h":1.9,"a":8.7,"l":0,"m":"steel"},{"id":"B","x":-0.02,"y":-0.77,"w":7.5,"h":2,"a":-12.9,"l":1,"m":"steel"},{"id":"C","x":0.62,"y":0.57,"w":8.2,"h":1.8,"a":9,"l":2,"m":"silver"},{"id":"D","x":-0.54,"y":2.32,"w":9.3,"h":1.6,"a":-15.4,"l":3,"m":"steel"}],"screws":[{"p":"A","t":-1.84},{"p":"A","t":0.29},{"p":"B","t":1.98},{"p":"B","t":-2.37},{"p":"C","t":-0.45},{"p":"C","t":2.65},{"p":"D","t":1.17},{"p":"D","t":-2.69},{"p":"A","t":3.14}]},{"plates":[{"id":"A","x":-0.46,"y":-2.26,"w":8.6,"h":1.8,"a":6.5,"l":0,"m":"wood"},{"id":"B","x":-0.45,"y":-0.83,"w":7.7,"h":1.5,"a":-15.6,"l":1,"m":"silver"},{"id":"C","x":-0.39,"y":0.73,"w":8.4,"h":1.8,"a":8.9,"l":2,"m":"steel"},{"id":"D","x":0.17,"y":2.31,"w":9.4,"h":1.8,"a":-15.8,"l":3,"m":"wood"}],"screws":[{"p":"A","t":3.23},{"p":"A","t":0.08},{"p":"B","t":1.51},{"p":"B","t":-2.9},{"p":"C","t":-1.4},{"p":"C","t":2.93},{"p":"D","t":-2.77},{"p":"D","t":0.46},{"p":"A","t":-2.03}]},{"plates":[{"id":"A","x":0.31,"y":-2.57,"w":9.1,"h":1.7,"a":6.5,"l":0,"m":"steel"},{"id":"B","x":0,"y":-1.44,"w":9.2,"h":1.8,"a":-7.3,"l":1,"m":"steel"},{"id":"C","x":0.15,"y":0.06,"w":9.1,"h":1.5,"a":13.5,"l":2,"m":"silver"},{"id":"D","x":-0.16,"y":1.19,"w":9.6,"h":1.7,"a":-8.1,"l":3,"m":"wood"},{"id":"E","x":-0.1,"y":2.62,"w":7.5,"h":2,"a":15.8,"l":4,"m":"wood"}],"screws":[{"p":"D","t":3.18,"also":["C"]},{"p":"A","t":2.81},{"p":"A","t":-3.07},{"p":"B","t":-0.48},{"p":"B","t":-3.22},{"p":"C","t":-2.19},{"p":"D","t":-2.77},{"p":"E","t":-0.22},{"p":"E","t":1.93},{"p":"A","t":-1.55},{"p":"D","t":0.76},{"p":"B","t":1.98}]},{"plates":[{"id":"A","x":0.03,"y":-2.53,"w":7.6,"h":1.5,"a":14.3,"l":0,"m":"wood"},{"id":"B","x":-0.03,"y":-0.83,"w":9,"h":2,"a":-9.9,"l":1,"m":"wood"},{"id":"C","x":0.13,"y":0.83,"w":7.6,"h":1.7,"a":15.8,"l":2,"m":"wood"},{"id":"D","x":0.23,"y":2.35,"w":8.2,"h":1.7,"a":-10.6,"l":3,"m":"steel"}],"screws":[{"p":"A","t":2.81},{"p":"A","t":-2.38},{"p":"B","t":-2.88},{"p":"B","t":-0.08},{"p":"C","t":-1.36},{"p":"C","t":2.76},{"p":"D","t":-0.39},{"p":"D","t":1.23},{"p":"C","t":0}]},{"plates":[{"id":"A","x":0.44,"y":-2.56,"w":8.6,"h":1.6,"a":7.2,"l":0,"m":"silver"},{"id":"B","x":-0.07,"y":-1.22,"w":9.5,"h":1.6,"a":-10.9,"l":1,"m":"steel"},{"id":"C","x":0.68,"y":-0.04,"w":9.2,"h":1.6,"a":7.1,"l":2,"m":"wood"},{"id":"D","x":-0.13,"y":1.28,"w":8.7,"h":1.7,"a":-13.3,"l":3,"m":"silver"},{"id":"E","x":0.45,"y":2.59,"w":8.7,"h":2,"a":7.9,"l":4,"m":"silver"}],"screws":[{"p":"E","t":-3.89,"also":["D"]},{"p":"A","t":3.01},{"p":"A","t":-2.27},{"p":"B","t":1.68},{"p":"B","t":-2.55},{"p":"C","t":2.75},{"p":"C","t":-0.97},{"p":"D","t":1.36},{"p":"E","t":2.09},{"p":"E","t":-1.86},{"p":"A","t":-0.56},{"p":"E","t":0.47}]},{"plates":[{"id":"A","x":-0.27,"y":-2.73,"w":8.3,"h":2,"a":-11.9,"l":0,"m":"wood"},{"id":"B","x":0.26,"y":-1.15,"w":9.4,"h":1.7,"a":8.4,"l":1,"m":"silver"},{"id":"C","x":-0.21,"y":-0.07,"w":8.9,"h":2,"a":-6.6,"l":2,"m":"silver"},{"id":"D","x":0.42,"y":1.36,"w":9.1,"h":1.9,"a":9.5,"l":3,"m":"wood"},{"id":"E","x":-0.64,"y":2.68,"w":7.5,"h":1.7,"a":-14.2,"l":4,"m":"wood"}],"screws":[{"p":"A","t":1.85},{"p":"A","t":3.24},{"p":"B","t":-2.25},{"p":"B","t":2.07},{"p":"C","t":1.34},{"p":"C","t":-3.1},{"p":"D","t":1.63},{"p":"D","t":-0.99},{"p":"E","t":1.14},{"p":"E","t":-0.85},{"p":"A","t":-3.2},{"p":"E","t":-2.57}]},{"plates":[{"id":"A","x":-0.46,"y":-2.68,"w":8.9,"h":1.8,"a":-7.1,"l":0,"m":"steel"},{"id":"B","x":0.48,"y":-1.2,"w":7.5,"h":1.9,"a":14.1,"l":1,"m":"silver"},{"id":"C","x":-0.35,"y":0,"w":7.4,"h":1.7,"a":-6.3,"l":2,"m":"wood"},{"id":"D","x":-0.6,"y":1.35,"w":8.2,"h":1.7,"a":11.9,"l":3,"m":"steel"},{"id":"E","x":-0.36,"y":2.5,"w":7.6,"h":1.9,"a":-8.2,"l":4,"m":"steel"}],"screws":[{"p":"E","t":3.13,"also":["D"]},{"p":"A","t":3.15},{"p":"A","t":-2.13},{"p":"B","t":-0.89},{"p":"B","t":2.4},{"p":"C","t":0.3},{"p":"C","t":1.66},{"p":"D","t":-1.07},{"p":"E","t":-1.11},{"p":"D","t":2.14},{"p":"E","t":-2.74},{"p":"D","t":-2.6}]},{"plates":[{"id":"A","x":-0.14,"y":-2.68,"w":8.5,"h":1.7,"a":-12.9,"l":0,"m":"silver"},{"id":"B","x":0.38,"y":-1.22,"w":7.7,"h":1.5,"a":11.3,"l":1,"m":"silver"},{"id":"C","x":0.28,"y":-0.06,"w":8.2,"h":2,"a":-6.4,"l":2,"m":"silver"},{"id":"D","x":0.06,"y":1.39,"w":8.5,"h":1.9,"a":13.3,"l":3,"m":"wood"},{"id":"E","x":0.05,"y":2.64,"w":9.4,"h":1.6,"a":-10.2,"l":4,"m":"silver"}],"screws":[{"p":"E","t":3.06,"also":["D"]},{"p":"A","t":1.92},{"p":"A","t":-2.55},{"p":"B","t":2.42},{"p":"B","t":-1.57},{"p":"C","t":-3.06},{"p":"C","t":0.49},{"p":"D","t":-1.05},{"p":"E","t":-0.45},{"p":"E","t":-1.95},{"p":"E","t":1.63},{"p":"A","t":0.19}]},{"plates":[{"id":"A","x":0.36,"y":-2.73,"w":7.8,"h":1.8,"a":-10.9,"l":0,"m":"silver"},{"id":"B","x":-0.49,"y":-1.4,"w":9,"h":1.9,"a":11.5,"l":1,"m":"silver"},{"id":"C","x":-0.29,"y":-0.09,"w":8.9,"h":1.9,"a":-8.5,"l":2,"m":"wood"},{"id":"D","x":-0.26,"y":1.25,"w":9.2,"h":2,"a":8.1,"l":3,"m":"wood"},{"id":"E","x":0.27,"y":2.65,"w":9.3,"h":1.5,"a":-13.2,"l":4,"m":"wood"}],"screws":[{"p":"E","t":3.61,"also":["D"]},{"p":"C","t":3.64,"also":["B"]},{"p":"A","t":-2.65},{"p":"A","t":1.38},{"p":"B","t":-0.56},{"p":"C","t":-3.03},{"p":"D","t":-0.13},{"p":"E","t":-1.54},{"p":"B","t":2.48},{"p":"E","t":2.22},{"p":"E","t":-2.85},{"p":"A","t":2.81}]},{"plates":[{"id":"A","x":-0.63,"y":-2.64,"w":8,"h":1.6,"a":7.7,"l":0,"m":"silver"},{"id":"B","x":-0.53,"y":-1.19,"w":8.2,"h":1.9,"a":-14.4,"l":1,"m":"silver"},{"id":"C","x":0.36,"y":0.03,"w":7.8,"h":1.7,"a":6.9,"l":2,"m":"wood"},{"id":"D","x":0.42,"y":1.19,"w":9.6,"h":1.6,"a":-10.4,"l":3,"m":"silver"},{"id":"E","x":-0.49,"y":2.66,"w":7.5,"h":1.5,"a":14.1,"l":4,"m":"steel"}],"screws":[{"p":"E","t":-3.09,"also":["D"]},{"p":"A","t":-0.13},{"p":"A","t":2.62},{"p":"B","t":-2.37},{"p":"B","t":0.95},{"p":"C","t":-1.28},{"p":"C","t":2.74},{"p":"D","t":-0.93},{"p":"E","t":2.49},{"p":"E","t":-1.43},{"p":"D","t":1.02},{"p":"A","t":-2.18}]},{"plates":[{"id":"A","x":-0.18,"y":-2.67,"w":7.9,"h":1.7,"a":-7.3,"l":0,"m":"steel"},{"id":"B","x":0.35,"y":-1.33,"w":9.5,"h":2,"a":10.3,"l":1,"m":"wood"},{"id":"C","x":-0.06,"y":-0.08,"w":9.1,"h":1.9,"a":-6.3,"l":2,"m":"steel"},{"id":"D","x":-0.3,"y":1.42,"w":7.9,"h":1.9,"a":9.5,"l":3,"m":"wood"},{"id":"E","x":-0.57,"y":2.69,"w":8.7,"h":2,"a":-13.4,"l":4,"m":"steel"}],"screws":[{"p":"E","t":3.33,"also":["D"]},{"p":"A","t":-2.47},{"p":"A","t":1.46},{"p":"B","t":-1.14},{"p":"B","t":2.45},{"p":"C","t":-0.02},{"p":"C","t":1.54},{"p":"D","t":-2.6},{"p":"E","t":0.59},{"p":"D","t":1.69},{"p":"E","t":-3.35},{"p":"E","t":-0.87}]},{"plates":[{"id":"A","x":-0.56,"y":-2.72,"w":9.4,"h":1.7,"a":-10.1,"l":0,"m":"steel"},{"id":"B","x":-0.2,"y":-1.26,"w":8.3,"h":1.7,"a":12.5,"l":1,"m":"steel"},{"id":"C","x":-0.69,"y":0.14,"w":7.6,"h":1.6,"a":-10.3,"l":2,"m":"wood"},{"id":"D","x":-0.3,"y":1.33,"w":8.2,"h":1.7,"a":12.8,"l":3,"m":"silver"},{"id":"E","x":0.58,"y":2.53,"w":9.4,"h":2,"a":-11.3,"l":4,"m":"wood"}],"screws":[{"p":"E","t":2.39,"also":["D"]},{"p":"D","t":-3.16,"also":["C"]},{"p":"A","t":2.37},{"p":"A","t":0.33},{"p":"B","t":2.57},{"p":"B","t":-0.57},{"p":"C","t":1.72},{"p":"E","t":-2.89},{"p":"A","t":-2.7},{"p":"D","t":2.02},{"p":"E","t":-0.21},{"p":"D","t":-0.84}]},{"plates":[{"id":"A","x":-0.06,"y":-2.64,"w":9.3,"h":1.5,"a":-7.1,"l":0,"m":"steel"},{"id":"B","x":-0.22,"y":-1.38,"w":8.1,"h":1.6,"a":10.9,"l":1,"m":"steel"},{"id":"C","x":0.49,"y":-0.1,"w":8.4,"h":1.6,"a":-10.6,"l":2,"m":"silver"},{"id":"D","x":0.54,"y":1.3,"w":8.3,"h":1.6,"a":10,"l":3,"m":"silver"},{"id":"E","x":-0.51,"y":2.61,"w":9.5,"h":1.7,"a":-10,"l":4,"m":"silver"}],"screws":[{"p":"E","t":4.31,"also":["D"]},{"p":"A","t":3.51},{"p":"A","t":-3.46},{"p":"B","t":2.86},{"p":"B","t":-2.1},{"p":"C","t":0.22},{"p":"C","t":-3.17},{"p":"D","t":-1.88},{"p":"E","t":-1.35},{"p":"B","t":0.03},{"p":"E","t":-3.02},{"p":"E","t":0.82}]},{"plates":[{"id":"A","x":-0.1,"y":-2.7,"w":7.7,"h":1.9,"a":-14.7,"l":0,"m":"steel"},{"id":"B","x":0.23,"y":-1.19,"w":9.2,"h":1.8,"a":7.4,"l":1,"m":"steel"},{"id":"C","x":0.26,"y":-0.04,"w":7.7,"h":1.8,"a":-7.3,"l":2,"m":"wood"},{"id":"D","x":-0.07,"y":1.39,"w":8.3,"h":1.7,"a":7.6,"l":3,"m":"wood"},{"id":"E","x":-0.3,"y":2.48,"w":8.1,"h":1.7,"a":-9.7,"l":4,"m":"steel"}],"screws":[{"p":"A","t":-2.88},{"p":"A","t":1.44},{"p":"B","t":3.02},{"p":"B","t":-1.43},{"p":"C","t":-0.11},{"p":"C","t":1.49},{"p":"D","t":-3.14},{"p":"D","t":2.77},{"p":"E","t":-1.53},{"p":"E","t":1.46},{"p":"E","t":0},{"p":"D","t":-1.62}]},{"plates":[{"id":"A","x":0.42,"y":-2.71,"w":8.5,"h":1.9,"a":15.8,"l":0,"m":"silver"},{"id":"B","x":-0.28,"y":-1.34,"w":8.2,"h":1.8,"a":-8,"l":1,"m":"steel"},{"id":"C","x":-0.45,"y":-0.02,"w":9,"h":1.7,"a":9.6,"l":2,"m":"steel"},{"id":"D","x":-0.43,"y":1.24,"w":7.4,"h":1.7,"a":-11,"l":3,"m":"silver"},{"id":"E","x":0.31,"y":2.59,"w":8.1,"h":1.5,"a":11.8,"l":4,"m":"wood"}],"screws":[{"p":"A","t":-1.64},{"p":"A","t":-3.2},{"p":"B","t":1.36},{"p":"B","t":-3.14},{"p":"C","t":3.13},{"p":"C","t":-1.13},{"p":"D","t":0.69},{"p":"D","t":-2.53},{"p":"E","t":-1.11},{"p":"E","t":1.75},{"p":"B","t":2.96},{"p":"E","t":0.29}]},{"plates":[{"id":"A","x":-0.57,"y":-2.65,"w":7.9,"h":1.6,"a":8.7,"l":0,"m":"wood"},{"id":"B","x":-0.45,"y":-1.33,"w":9.3,"h":2,"a":-15.3,"l":1,"m":"steel"},{"id":"C","x":-0.35,"y":-0.11,"w":9.6,"h":1.7,"a":11,"l":2,"m":"wood"},{"id":"D","x":-0.48,"y":1.17,"w":8.6,"h":1.9,"a":-9.8,"l":3,"m":"silver"},{"id":"E","x":-0.07,"y":2.5,"w":8.4,"h":1.8,"a":8.1,"l":4,"m":"steel"}],"screws":[{"p":"C","t":-2.72,"also":["B"]},{"p":"B","t":3.16,"also":["A"]},{"p":"D","t":3.61,"also":["C"]},{"p":"A","t":-1.64},{"p":"D","t":-2.89},{"p":"E","t":-0.79},{"p":"E","t":3.27},{"p":"A","t":1.87},{"p":"C","t":2.17},{"p":"C","t":-1.46},{"p":"E","t":1.36},{"p":"B","t":0.53}]},{"plates":[{"id":"A","x":0.5,"y":-2.42,"w":9.3,"h":1.9,"a":9.1,"l":0,"m":"wood"},{"id":"B","x":-0.49,"y":-0.9,"w":8,"h":1.6,"a":-13.9,"l":1,"m":"wood"},{"id":"C","x":0.16,"y":0.57,"w":7.4,"h":1.8,"a":12.1,"l":2,"m":"silver"},{"id":"D","x":-0.12,"y":2.31,"w":7.9,"h":1.9,"a":-15.2,"l":3,"m":"steel"}],"screws":[{"p":"A","t":-0.52},{"p":"A","t":2.39},{"p":"B","t":-2.32},{"p":"B","t":1.88},{"p":"C","t":2.54},{"p":"C","t":-1.53},{"p":"D","t":-1.26},{"p":"D","t":1.15},{"p":"C","t":-0.17}]},{"plates":[{"id":"A","x":-0.21,"y":-2.73,"w":9.5,"h":2,"a":-12.1,"l":0,"m":"silver"},{"id":"B","x":-0.2,"y":-1.21,"w":8.9,"h":1.8,"a":8.5,"l":1,"m":"wood"},{"id":"C","x":0.09,"y":0.09,"w":9.5,"h":1.8,"a":-8.9,"l":2,"m":"wood"},{"id":"D","x":0.32,"y":1.3,"w":8.1,"h":1.7,"a":9.5,"l":3,"m":"silver"},{"id":"E","x":0.56,"y":2.45,"w":8.6,"h":1.6,"a":-15.1,"l":4,"m":"steel"}],"screws":[{"p":"E","t":2.63,"also":["D"]},{"p":"A","t":-3.8},{"p":"A","t":2.63},{"p":"B","t":3.49},{"p":"B","t":-1.75},{"p":"C","t":1.08},{"p":"C","t":-2.55},{"p":"D","t":-0.35},{"p":"E","t":-1.27},{"p":"E","t":-2.57},{"p":"E","t":1.26},{"p":"A","t":0.89}]},{"plates":[{"id":"A","x":-0.68,"y":-2.65,"w":9.1,"h":1.5,"a":11.7,"l":0,"m":"steel"},{"id":"B","x":-0.68,"y":-1.18,"w":7.8,"h":1.7,"a":-10.3,"l":1,"m":"wood"},{"id":"C","x":0.45,"y":0.05,"w":8.4,"h":1.9,"a":7.4,"l":2,"m":"steel"},{"id":"D","x":-0.57,"y":1.37,"w":8.6,"h":1.9,"a":-7.7,"l":3,"m":"wood"},{"id":"E","x":0.31,"y":2.52,"w":9,"h":1.6,"a":9.9,"l":4,"m":"silver"}],"screws":[{"p":"A","t":-2.96},{"p":"A","t":-1.16},{"p":"B","t":-2.42},{"p":"B","t":2.66},{"p":"C","t":-1.47},{"p":"C","t":2.66},{"p":"D","t":1.12},{"p":"D","t":-2.9},{"p":"E","t":1.49},{"p":"E","t":0.06},{"p":"E","t":-2.55},{"p":"B","t":1.34}]},{"plates":[{"id":"A","x":0.21,"y":-2.62,"w":8,"h":1.5,"a":11.4,"l":0,"m":"silver"},{"id":"B","x":0.14,"y":-1.34,"w":8.8,"h":2,"a":-8.2,"l":1,"m":"steel"},{"id":"C","x":0.41,"y":0.14,"w":8.5,"h":1.7,"a":13.4,"l":2,"m":"silver"},{"id":"D","x":0.18,"y":1.34,"w":8.4,"h":1.8,"a":-6.2,"l":3,"m":"silver"},{"id":"E","x":0.03,"y":2.62,"w":8.3,"h":1.8,"a":13,"l":4,"m":"steel"}],"screws":[{"p":"D","t":3.64,"also":["C"]},{"p":"A","t":2.57},{"p":"A","t":-1.05},{"p":"B","t":-3.01},{"p":"B","t":1.35},{"p":"C","t":-1.4},{"p":"D","t":0.53},{"p":"E","t":-0.3},{"p":"E","t":3.21},{"p":"D","t":-2.8},{"p":"A","t":-2.51},{"p":"B","t":-0.01}]},{"plates":[{"id":"A","x":-0.11,"y":-2.28,"w":9.1,"h":1.8,"a":13.9,"l":0,"m":"wood"},{"id":"B","x":-0.59,"y":-0.71,"w":9.3,"h":1.8,"a":-7.1,"l":1,"m":"silver"},{"id":"C","x":0.46,"y":0.62,"w":7.9,"h":1.9,"a":14.6,"l":2,"m":"silver"},{"id":"D","x":0.54,"y":2.39,"w":7.6,"h":1.8,"a":-15,"l":3,"m":"wood"}],"screws":[{"p":"A","t":-2.01},{"p":"A","t":-0.34},{"p":"B","t":2.13},{"p":"B","t":-1.96},{"p":"C","t":3.04},{"p":"C","t":-1.06},{"p":"D","t":1.32},{"p":"D","t":-0.52},{"p":"A","t":3.41}]},{"plates":[{"id":"A","x":-0.2,"y":-2.49,"w":8.4,"h":1.8,"a":-7.4,"l":0,"m":"silver"},{"id":"B","x":0.19,"y":-1.29,"w":7.9,"h":1.9,"a":14.2,"l":1,"m":"silver"},{"id":"C","x":-0.63,"y":0.12,"w":9.3,"h":1.6,"a":-15.1,"l":2,"m":"steel"},{"id":"D","x":0.3,"y":1.25,"w":7.7,"h":2,"a":7,"l":3,"m":"steel"},{"id":"E","x":-0.02,"y":2.7,"w":9,"h":1.9,"a":-12.9,"l":4,"m":"silver"}],"screws":[{"p":"B","t":-3.37,"also":["A"]},{"p":"C","t":3.2,"also":["B"]},{"p":"A","t":1.17},{"p":"C","t":-1.41},{"p":"D","t":-0.54},{"p":"D","t":2.84},{"p":"E","t":-1.05},{"p":"E","t":1.65},{"p":"A","t":-1.59},{"p":"E","t":0.25},{"p":"A","t":3.12},{"p":"B","t":-0.61}]},{"plates":[{"id":"A","x":0.7,"y":-2.34,"w":7.5,"h":1.8,"a":-11.7,"l":0,"m":"steel"},{"id":"B","x":0.11,"y":-0.8,"w":9.1,"h":1.8,"a":15.2,"l":1,"m":"wood"},{"id":"C","x":-0.68,"y":0.57,"w":7.9,"h":1.6,"a":-9.9,"l":2,"m":"steel"},{"id":"D","x":0.4,"y":2.1,"w":7.8,"h":1.9,"a":15.7,"l":3,"m":"silver"}],"screws":[{"p":"A","t":0.24},{"p":"A","t":-2.67},{"p":"B","t":2.05},{"p":"B","t":-0.73},{"p":"C","t":-1.99},{"p":"C","t":1.66},{"p":"D","t":0},{"p":"D","t":2.91},{"p":"D","t":1.43}]}];   // kho bố cục sinh sẵn và đã kiểm tra (do tools/gen-bank.js tạo)
+const TARGETS = [1, 1, 2, 3];
+function makeLevel(n){
+  if (n < LEVELS.length) return resolveLevel(LEVELS[n]);
+  const rng = mulberry32(n * 7919 + 13), target = TARGETS[(n - LEVELS.length) % TARGETS.length];
+  const nS = target >= 2 ? 12 : (rng() < .5 ? 9 : 12);
+  const shuffle = a => { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(rng()*(i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+  let fallback = null, fbMin = -1;
+  const tryLayout = lay => {
+    const k = lay.screws.length / 3;
+    for (let att = 0; att < 60; att++) {
+      const cols = shuffle(['R', 'B', 'Y', 'G', 'P']).slice(0, k), bag = shuffle([].concat(...cols.map(c => [c, c, c])));
+      const L = resolveLevel({order:shuffle(cols.slice()), plates:lay.plates, screws:lay.screws.map((s, i) => Object.assign({}, s, {c:bag[i]}))});
+      if (solvePath(L, target) && (target === 0 || !solvePath(L, target - 1))) return L;
+      for (let m = 0; m <= target && m > fbMin; m++) if (solvePath(L, m)) { fallback = L; fbMin = m; break; }
+    }
+    return null;
+  };
+  // chọn bố cục từ kho đã kiểm tra sẵn (tools/gen-bank.js); thử vài bố cục, có lật gương ngẫu nhiên
+  const bank = LAYOUT_BANK.filter(l => l.screws.length === nS), t0 = Date.now();
+  for (let tries = 0; bank.length && tries < 8 && Date.now() - t0 < 400; tries++) {
+    let lay = bank[Math.floor(rng()*bank.length)];
+    if (rng() < .5) lay = mirror(lay);
+    const L = tryLayout(lay); if (L) return L;
+  }
+  for (const lay of [L3, mirror(L3), L2, mirror(L2)]) { const L = tryLayout(lay); if (L) return L; }     // dự phòng: bố cục làm tay
+  return fallback || resolveLevel(LEVELS[n % LEVELS.length]);
+}
+// ==/LEVELS==
+
+if (typeof THREE === 'undefined') {
+  document.getElementById('fatal').style.display = 'flex';
+} else (function main(){
+
+/* =====================================================================
+   2. ÂM THANH (WebAudio tổng hợp, không cần file) + HAPTIC
+   ===================================================================== */
+let AC = null, muted = false;
+try { muted = localStorage.getItem('sj3d-muted') === '1'; } catch(e){}
+function audio(){
+  if (!AC) { try { AC = new (window.AudioContext || window.webkitAudioContext)(); } catch(e){} }
+  if (AC && AC.state === 'suspended') AC.resume();
+  return AC;
+}
+function tone(f, dur, type, vol, delay, slide){
+  const a = AC; if (!a || muted) return;
+  const t = a.currentTime + (delay || 0), o = a.createOscillator(), g = a.createGain();
+  o.type = type || 'sine'; o.frequency.setValueAtTime(f, t);
+  if (slide) o.frequency.exponentialRampToValueAtTime(slide, t + dur);
+  g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  o.connect(g).connect(a.destination); o.start(t); o.stop(t + dur + 0.02);
+}
+function noise(dur, vol, f0, f1, delay){
+  const a = AC; if (!a || muted) return;
+  const t = a.currentTime + (delay || 0), n = Math.floor(a.sampleRate * dur);
+  const buf = a.createBuffer(1, n, a.sampleRate), d = buf.getChannelData(0);
+  for (let i = 0; i < n; i++) d[i] = Math.random()*2 - 1;
+  const src = a.createBufferSource(); src.buffer = buf;
+  const flt = a.createBiquadFilter(); flt.type = 'bandpass'; flt.Q.value = 1.2;
+  flt.frequency.setValueAtTime(f0, t); flt.frequency.exponentialRampToValueAtTime(f1, t + dur);
+  const g = a.createGain(); g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  src.connect(flt).connect(g).connect(a.destination); src.start(t);
+}
+const sfx = {
+  click(){ tone(520, .08, 'square', .05, 0, 260); noise(.05, .25, 3500, 1800); },       // "click" khi tháo ốc
+  clack(){ tone(190, .09, 'triangle', .16, 0, 120); noise(.04, .3, 2600, 1200); },       // "clack" khi ốc rơi vào lỗ
+  whoosh(){ noise(.55, .4, 1400, 180); },                                                // thanh rơi tự do
+  ding(){ tone(880, .7, 'sine', .14); tone(1320, .9, 'sine', .1, .08); },                // xong 1 hộp
+  buzz(){ tone(130, .16, 'sawtooth', .07, 0, 90); },
+  win(){ [660, 880, 1100, 1320].forEach((f, i) => tone(f, .5, 'sine', .12, i*.11)); }
+};
+const haptic = ms => { try { navigator.vibrate && navigator.vibrate(ms); } catch(e){} };
+
+/* =====================================================================
+   3. CẢNH 3D
+   Hệ trục: mặt bàn trong mặt phẳng XY (Y hướng lên), camera nhìn từ +Z.
+   Hộp thu gom ở trên (y≈8.4), bàn chơi ở giữa, hàng lỗ chờ ở dưới (y≈-7.6).
+   ===================================================================== */
+const canvas = document.getElementById('c');
+let renderer;
+try { renderer = new THREE.WebGLRenderer({canvas, antialias:true}); }
+catch (e) { document.getElementById('fatal').textContent = 'Your browser does not support WebGL, which this game needs.'; document.getElementById('fatal').style.display = 'flex'; return; }
+renderer.setClearColor(0xF4EFEA);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(40, 1, 0.1, 200);
+scene.add(new THREE.AmbientLight(0xffffff, 0.62));
+const sun = new THREE.DirectionalLight(0xffffff, 0.42);
+sun.position.set(-6, 10, 16); sun.castShadow = true;
+sun.shadow.mapSize.set(1024, 1024); sun.shadow.bias = -0.0005;
+Object.assign(sun.shadow.camera, {left:-14, right:14, top:16, bottom:-16, near:1, far:60});
+scene.add(sun);
+
+function fitCamera(){                 // khung nhìn tính theo vùng còn trống giữa thanh tiêu đề (trên) và hàng nút (dưới)
+  const w = window.innerWidth, h = window.innerHeight, TOP = 64, BOTTOM = 80;
+  renderer.setSize(w, h, false);
+  camera.aspect = w / h;
+  const t = Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)), usable = Math.max(h - TOP - BOTTOM, h*0.5);
+  const dist = Math.max(18.6*h / (usable*2*t), 12.4 / (2*t*camera.aspect));      // nội dung cao 18.6 đơn vị, rộng 12.4
+  const camY = 0.2 + ((TOP - BOTTOM)/2) * (2*dist*t / h);                         // dịch camera để nội dung nằm giữa vùng trống
+  camera.position.set(0, camY, dist); camera.lookAt(0, camY, 0);
+  camera.updateProjectionMatrix();
+}
+window.addEventListener('resize', fitCamera); fitCamera();
+document.addEventListener('gesturestart', e => e.preventDefault());
+document.addEventListener('contextmenu', e => e.preventDefault());
+
+/* ---------- hàm dựng hình ---------- */
+function roundedRectShape(w, h, r){
+  const s = new THREE.Shape(), x = -w/2, y = -h/2;
+  s.moveTo(x + r, y); s.lineTo(x + w - r, y); s.absarc(x + w - r, y + r, r, -Math.PI/2, 0);
+  s.lineTo(x + w, y + h - r); s.absarc(x + w - r, y + h - r, r, 0, Math.PI/2);
+  s.lineTo(x + r, y + h); s.absarc(x + r, y + h - r, r, Math.PI/2, Math.PI);
+  s.lineTo(x, y + r); s.absarc(x + r, y + r, r, Math.PI, Math.PI*1.5);
+  return s;
+}
+function slabGeometry(w, h, depth, holes){      // tấm hình hộp dẹt bo góc, khoét lỗ ở vị trí các ốc
+  const s = roundedRectShape(w, h, Math.min(h/2 - 0.02, 0.4));
+  (holes || []).forEach(p => { const hp = new THREE.Path(); hp.absarc(p.x, p.y, 0.3, 0, Math.PI*2, true); s.holes.push(hp); });
+  return new THREE.ExtrudeGeometry(s, {depth, bevelEnabled:true, bevelThickness:.03, bevelSize:.03, bevelSegments:1, curveSegments:10});
+}
+const mat = (c, rough) => new THREE.MeshStandardMaterial({color:c, roughness:rough == null ? .8 : rough, metalness:0});
+const matCache = {}, cmat = (c, r) => matCache[c + '_' + r] || (matCache[c + '_' + r] = mat(c, r));   // vật liệu dùng chung theo màu
+const PLATE_MAT = {wood:mat(0xD1A054), silver:mat(0xBDC3C7), steel:mat(0x485460)};
+const DARK = mat(0x2d2a36), HOLE_DARK = mat(0xCFC4B6), LOCK_MAT = mat(0x778CA3);
+const HIT_MAT = new THREE.MeshBasicMaterial({visible:false}), WHITE_BASIC = new THREE.MeshBasicMaterial({color:0xffffff});
+// hình khối dùng chung cho mọi ốc / lỗ chờ / hộp (tránh rò rỉ bộ nhớ khi chơi nhiều màn)
+const GEO = {head:new THREE.CylinderGeometry(.45, .45, .2, 20), shaft:new THREE.CylinderGeometry(.15, .15, .45, 10), slot:new THREE.BoxGeometry(.6, .1, .06),
+  hit:new THREE.CylinderGeometry(.75, .75, .6, 12), tap:new THREE.CylinderGeometry(.85, .85, .4, 12), hole:new THREE.CircleGeometry(.62, 24),
+  sock:new THREE.CircleGeometry(.5, 20), bar:new THREE.PlaneGeometry(.6, .12)};
+const PLATE_T = 0.3, LAYER_DZ = 0.5, BOARD_Z = -0.15, TRAY_Z = 2.9;   // khay chờ và hộp nằm TRƯỚC các thanh để luôn nhìn thấy
+
+/* Ký hiệu hình dạng riêng cho mỗi màu, để người mù màu vẫn phân biệt được (đỏ + , xanh dương -, vàng tam giác, xanh lá chấm, tím thoi) */
+const SYM_GEO = {bar:new THREE.PlaneGeometry(.58, .11), tri:new THREE.CircleGeometry(.3, 3), dot:new THREE.CircleGeometry(.2, 16), dia:new THREE.CircleGeometry(.3, 4)};
+const SYM_DARK = new THREE.MeshBasicMaterial({color:0x2d2a36}), SYM_LIGHT = new THREE.MeshBasicMaterial({color:0xffffff, transparent:true, opacity:.85});
+function makeSymbol(color, material, scale){
+  const g = new THREE.Group(), add = (geo, rz) => { const m = new THREE.Mesh(geo, material); m.rotation.z = rz || 0; g.add(m); return m; };
+  if (color === 'R') { add(SYM_GEO.bar, 0); add(SYM_GEO.bar, Math.PI/2); }
+  else if (color === 'B') add(SYM_GEO.bar, 0);
+  else if (color === 'Y') add(SYM_GEO.tri, Math.PI/2);
+  else if (color === 'G') add(SYM_GEO.dot, 0);
+  else add(SYM_GEO.dia, Math.PI/4);
+  g.scale.setScalar(scale || 1); return g;
+}
+function makeScrewMesh(colorKey){
+  const color = COLORS[colorKey];
+  const g = new THREE.Group(), m = cmat(color, .5);
+  const head = new THREE.Mesh(GEO.head, m);
+  head.rotation.x = Math.PI/2; head.position.z = .1; head.castShadow = true; g.add(head);
+  const shaft = new THREE.Mesh(GEO.shaft, m);
+  shaft.rotation.x = Math.PI/2; shaft.position.z = -.2; g.add(shaft);
+  const sym = makeSymbol(colorKey, SYM_DARK, 1); sym.position.z = .215; g.add(sym);
+  const hit = new THREE.Mesh(GEO.hit, HIT_MAT);  // vùng chạm rộng cho ngón tay
+  hit.rotation.x = Math.PI/2; hit.position.z = .1; g.add(hit);
+  return g;
+}
+/* vòng gợi ý (nhấp nháy quanh ốc nên tháo) */
+const hintRing = new THREE.Mesh(new THREE.RingGeometry(.62, .8, 36), new THREE.MeshBasicMaterial({color:0x2d2a36, transparent:true, opacity:.9, depthTest:false}));
+hintRing.renderOrder = 20; hintRing.visible = false; scene.add(hintRing);
+
+/* =====================================================================
+   4. TRẠNG THÁI TRÒ CHƠI
+   ===================================================================== */
+const MAX_SLOTS = 5, G_PEND = 20, G_FALL = 26;
+const state = {mode:'play', level:0, loadId:0, openSlots:3, boxIdx:0, delivered:0, t:0, idle:0, L:null};
+let world = null, plates = [], screws = [], boxes = [], slots = [], confetti = [], hintTarget = null, prefetched = null;
+const QS = new URLSearchParams(location.search);
+const $ = id => document.getElementById(id);
+try { state.level = Math.max(0, parseInt(localStorage.getItem('sj3d-level') || '0', 10) || 0); } catch(e){}
+if (QS.has('start')) state.level = Math.max(0, parseInt(QS.get('start'), 10) || 0);
+
+let toastTimer = 0;
+function toast(msg, ms){
+  const el = $('toast'); el.textContent = msg; el.classList.add('show');
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => el.classList.remove('show'), ms || 2200);
+}
+const TUTORIAL = {
+  0:'Tap a screw to unscrew it. Same color as the box goes in!',
+  1:'Other colors wait in the slots below. Don\'t let them fill up!',
+  3:'Tough one! Plan your order before you tap.'
+};
+
+/* ---------- dựng màn chơi ---------- */
+function loadLevel(i){
+  state.loadId++; state.level = i; state.mode = 'play'; state.openSlots = 3; state.boxIdx = 0; state.delivered = 0; state.idle = 0;
+  try { if (!QS.has('auto')) localStorage.setItem('sj3d-level', String(i)); } catch(e){}
+  if (world) { scene.remove(world); world.traverse(o => { if (o.geometry && o.userData.own) o.geometry.dispose(); }); confetti.forEach(c => c.m.material.dispose()); }
+  world = new THREE.Group(); scene.add(world);
+  plates = []; screws = []; boxes = []; slots = []; confetti = []; setHint(null);
+
+  const L = (prefetched && prefetched.n === i) ? prefetched.L : makeLevel(i); prefetched = null; state.L = L;
+  state.model = buildModel(L);       // dựng ngay khi thanh còn ở tư thế ban đầu (vật lý sẽ làm các thanh di chuyển)
+
+  // tấm nền cố định (anchor plane)
+  const board = new THREE.Mesh(new THREE.ShapeGeometry(roundedRectShape(11, 10.8, .6)), cmat(0xE9E1D6, 1)); board.userData.own = true;
+  board.position.set(0, 0.4, BOARD_Z); board.receiveShadow = true; world.add(board);
+
+  L.screws.forEach(s => {
+    s.mesh = makeScrewMesh(s.color); s.mesh.userData.screw = s; s.removed = false; s.anim = null;
+    s.mesh.position.set(s.x, s.y, s.layer*LAYER_DZ + PLATE_T);
+    s.mesh.traverse(o => { if (o.isMesh && o.material !== HIT_MAT) o.castShadow = true; });
+    world.add(s.mesh); screws.push(s);
+  });
+  L.plates.forEach(p => {
+    p.holders = new Set(L.screws.filter(s => s.plateIds.includes(p.id)));
+    p.state = 'fixed'; p.removed = false; p.shake = 0; p.z = p.layer*LAYER_DZ; p.ang0 = p.ang;
+    p.k = (p.w*p.w + p.h*p.h) / 12;             // momen quán tính / khối lượng quanh tâm (cho con lắc)
+    const c = Math.cos(-p.ang), sn = Math.sin(-p.ang);
+    const holes = [...p.holders].map(s => ({x:(s.x - p.x)*c - (s.y - p.y)*sn, y:(s.x - p.x)*sn + (s.y - p.y)*c}));
+    const mesh = new THREE.Mesh(slabGeometry(p.w, p.h, PLATE_T - .06, holes), PLATE_MAT[p.mat]);
+    mesh.userData.own = true; mesh.castShadow = true; mesh.receiveShadow = true; mesh.position.z = .03;
+    p.group = new THREE.Group(); p.group.add(mesh); world.add(p.group); plates.push(p);
+    syncPlate(p);
+  });
+  buildTray(); buildBoxes(L.order);
+  hideOverlay(); updateHud();
+  if (TUTORIAL[i]) toast(TUTORIAL[i], 4500); else $('toast').classList.remove('show');
+}
+
+/* ---------- khay chờ (buffer slots) ---------- */
+function buildTray(){
+  const tray = new THREE.Mesh(new THREE.ShapeGeometry(roundedRectShape(MAX_SLOTS*1.62 + .7, 2, .8)), cmat(0xE3D9CB, 1)); tray.userData.own = true;
+  tray.position.set(0, -7.6, TRAY_Z - .1); tray.receiveShadow = true; world.add(tray);
+  for (let i = 0; i < MAX_SLOTS; i++) {
+    const pos = new THREE.Vector3((i - (MAX_SLOTS-1)/2)*1.62, -7.6, TRAY_Z + .1);
+    const open = new THREE.Mesh(GEO.hole, HOLE_DARK); open.position.copy(pos);
+    const lock = new THREE.Group(); lock.position.copy(pos);
+    const disc = new THREE.Mesh(GEO.hole, LOCK_MAT); lock.add(disc);
+    const bar = new THREE.Mesh(GEO.bar, WHITE_BASIC);
+    bar.position.z = .02; lock.add(bar); const bar2 = bar.clone(); bar2.rotation.z = Math.PI/2; lock.add(bar2);
+    const tap = new THREE.Mesh(GEO.tap, HIT_MAT);   // vùng chạm để mở khóa bằng quảng cáo
+    tap.rotation.x = Math.PI/2; lock.add(tap); lock.userData.lock = true;
+    world.add(open, lock);
+    slots.push({pos, screw:null, open:false, ring:open, lock});
+  }
+  refreshSlots();
+}
+function slotOrder(){ return [2, 1, 3, 0, 4]; }       // lỗ mở dần từ giữa ra hai bên
+function refreshSlots(){
+  const order = slotOrder();
+  slots.forEach(s => { s.open = false; });
+  for (let k = 0; k < state.openSlots; k++) slots[order[k]].open = true;
+  slots.forEach(s => { s.ring.visible = s.open; s.lock.visible = !s.open; });
+}
+
+/* ---------- hộp thu gom (collector boxes) ---------- */
+const BOX_W = 4.6, BOX_H = 1.7, SOCK = [-1.5, 0, 1.5];
+function buildBoxes(order){
+  order.forEach(col => {
+    const g = new THREE.Group(), body = new THREE.Mesh(slabGeometry(BOX_W, BOX_H, .5, []), cmat(COLORS[col], .7)); body.userData.own = true;
+    g.add(body);   // hộp không đổ bóng lên bàn
+    SOCK.forEach(x => { const d = new THREE.Mesh(GEO.sock, DARK); d.position.set(x, 0, .55); g.add(d); const s = makeSymbol(col, SYM_LIGHT, .8); s.position.set(x, 0, .56); g.add(s); });   // ký hiệu mờ trong mỗi lỗ hộp
+    const lidGeo = slabGeometry(BOX_W, BOX_H, .16, []); lidGeo.translate(BOX_W/2, 0, 0);      // gốc ở mép trái để nắp trượt mở
+    const lid = new THREE.Mesh(lidGeo, cmat(new THREE.Color(COLORS[col]).lerp(new THREE.Color(0xffffff), .35).getHex(), .6)); lid.userData.own = true;
+    lid.position.set(-BOX_W/2, 0, .72); g.add(lid);
+    const lidSym = makeSymbol(col, SYM_LIGHT, 2.2); lidSym.position.set(BOX_W/2, 0, .23); lid.add(lidSym);   // hộp đóng nắp vẫn hiện ký hiệu màu
+    g.position.set(9, 7.7, TRAY_Z); world.add(g);
+    boxes.push({color:col, group:g, lid, reserved:0, arrived:0, done:false, leaving:false, gone:false});
+  });
+}
+const _tmp = new THREE.Vector3();
+function boxTarget(box, i){      // vị trí thế giới của lỗ i trong hộp (hộp đang di chuyển nên tính lại mỗi khung)
+  const g = box.group; return _tmp.set(g.position.x + SOCK[i]*g.scale.x, g.position.y, TRAY_Z + .9);
+}
+function updateBoxes(dt){
+  const visible = boxes.filter(b => !b.gone && !b.leaving);
+  boxes.forEach(b => {
+    let tp, ts, lidOpen = false;
+    if (b.gone) { b.group.visible = false; return; }
+    if (b.leaving) { tp = [-9, 7.9]; ts = .5; }
+    else {
+      const idx = visible.indexOf(b);
+      if (idx === 0) { tp = [0, 7.7]; ts = 1; }
+      else if (idx === 1) { tp = [4.0, 7.9]; ts = .62; }     // hộp kế tiếp, đóng nắp, thu nhỏ (preview)
+      else { tp = [9, 7.9]; ts = .5; }
+      lidOpen = (b === boxes[state.boxIdx]) && !b.done;
+    }
+    b.group.visible = b.leaving || visible.indexOf(b) <= 1;      // chỉ hiện hộp hiện tại và hộp kế tiếp
+    const k = 1 - Math.exp(-dt*9), g = b.group;
+    g.position.x += (tp[0] - g.position.x)*k; g.position.y += (tp[1] - g.position.y)*k;
+    g.scale.setScalar(g.scale.x + (ts - g.scale.x)*k);
+    const ls = b.lid.scale.x + ((lidOpen ? 0.001 : 1) - b.lid.scale.x)*(1 - Math.exp(-dt*14)); b.lid.scale.x = ls; b.lid.visible = ls > 0.03;
+  });
+}
+function completeBox(box){               // đủ 3 ốc: đóng nắp, pháo giấy, bay khỏi màn hình
+  box.done = true; const token = state.loadId;
+  setTimeout(() => { if (token !== state.loadId) return; sfx.ding(); spawnConfetti(box.group.position.x, box.group.position.y, 26); haptic(20); }, 320);
+  setTimeout(() => { if (token !== state.loadId) return; box.leaving = true; }, 950);
+  setTimeout(() => { if (token !== state.loadId) return; box.gone = true; }, 1600);
+}
+const CONFETTI_GEO = new THREE.BoxGeometry(.22, .12, .02);
+function spawnConfetti(x, y, count){
+  const cols = [0xFF5E57, 0x3867D6, 0xFFA801, 0x05C46B, 0x8854D0];
+  for (let i = 0; i < count; i++) {
+    const m = new THREE.Mesh(CONFETTI_GEO, new THREE.MeshBasicMaterial({color:cols[i % cols.length], transparent:true}));
+    m.position.set(x, y, 1.2); world.add(m);
+    confetti.push({m, vx:(Math.random() - .5)*9, vy:Math.random()*7 + 2, vz:Math.random()*3, vr:(Math.random() - .5)*14, life:1.3});
+  }
+}
+
+/* =====================================================================
+   5. LOGIC THANH CHẮN (Plate State)
+   fixed    : còn >= 2 ốc giữ  -> đứng yên
+   pendulum : còn đúng 1 ốc    -> xoay tự do quanh con ốc đó như con lắc vật lý
+   falling  : hết ốc           -> rơi tự do theo trọng lực, bị hủy khi Y < -16
+   ===================================================================== */
+function updatePlateState(p){
+  if (p.removed || p.state === 'falling') return;
+  const n = p.holders.size;
+  if (n >= 2) { p.state = 'fixed'; return; }
+  if (n === 1) {
+    const s = [...p.holders][0];
+    if (p.state === 'pendulum' && p.pivot === s) return;
+    p.pivot = s;
+    const dx = s.x - p.x, dy = s.y - p.y, c = Math.cos(-p.ang), sn = Math.sin(-p.ang);
+    p.r = {x:dx*c - dy*sn, y:dx*sn + dy*c};      // vị trí ốc trong hệ tọa độ của thanh
+    p.state = 'pendulum'; p.om = 0; return;
+  }
+  p.state = 'falling'; p.vx = (Math.random() - .5)*1.4; p.vy = 0; p.om = (Math.random() - .5)*2.6;
+  sfx.whoosh();
+}
+function stepPlates(h){
+  for (const p of plates) {
+    if (p.removed) continue;
+    if (p.state === 'pendulum') {
+      // gia tốc góc của vật rắn treo ở 1 điểm: alpha = g*(Px-Cx) / (k + d^2)
+      let c = Math.cos(p.ang), sn = Math.sin(p.ang);
+      const rx = c*p.r.x - sn*p.r.y;
+      const a = G_PEND*rx / (p.k + p.r.x*p.r.x + p.r.y*p.r.y);
+      p.om += a*h; p.om *= Math.exp(-2.6*h); p.ang += p.om*h;
+      const dl = p.ang - p.ang0;                       // bị chặn ở góc giới hạn (va chạm mất hết động năng)
+      if (dl > SWING_LIMIT) { p.ang = p.ang0 + SWING_LIMIT; if (p.om > 0) p.om = 0; }
+      else if (dl < -SWING_LIMIT) { p.ang = p.ang0 - SWING_LIMIT; if (p.om < 0) p.om = 0; }
+      c = Math.cos(p.ang); sn = Math.sin(p.ang);
+      p.x = p.pivot.x - (c*p.r.x - sn*p.r.y); p.y = p.pivot.y - (sn*p.r.x + c*p.r.y);
+    } else if (p.state === 'falling') {
+      p.vy -= G_FALL*h; p.x += p.vx*h; p.y += p.vy*h; p.ang += p.om*h; p.z += h*1.5;
+      if (p.y < -16) { p.removed = true; world.remove(p.group); }
+    }
+  }
+}
+function syncPlate(p, dt){
+  if (p.shake > 0) p.shake = Math.max(0, p.shake - (dt || 0));
+  const sx = p.shake > 0 ? Math.sin(state.t*70)*0.09*(p.shake/.3) : 0;
+  p.group.position.set(p.x + sx, p.y, p.z); p.group.rotation.z = p.ang;
+}
+/* Ốc bị chặn khi có thanh nằm TẦNG CAO HƠN che đúng vị trí của nó (thanh đang rơi không còn che) */
+function blockerOf(s){
+  for (const p of plates) {
+    if (p.removed || p.state === 'falling' || p.layer <= s.layer) continue;
+    if (inRect(p, s.x, s.y)) return p;
+  }
+  return null;
+}
+
+/* =====================================================================
+   6. TƯƠNG TÁC: Raycaster, rút ốc, bay vào hộp / lỗ chờ
+   ===================================================================== */
+const raycaster = new THREE.Raycaster(), ndc = new THREE.Vector2();
+canvas.addEventListener('pointerdown', e => {
+  audio(); state.idle = 0;
+  if (state.mode !== 'play') return;
+  const r = canvas.getBoundingClientRect();
+  ndc.set(((e.clientX - r.left)/r.width)*2 - 1, -((e.clientY - r.top)/r.height)*2 + 1);
+  raycaster.setFromCamera(ndc, camera);
+  const hits = raycaster.intersectObjects(screws.filter(s => !s.removed).map(s => s.mesh), true);
+  let blocked = null;
+  for (const h of hits) {                          // lấy ốc gần nhất mà KHÔNG bị thanh đè
+    let o = h.object; while (o && !o.userData.screw) o = o.parent;
+    if (!o) continue;
+    const b = blockerOf(o.userData.screw);
+    if (b) { blocked = blocked || b; continue; }
+    pullScrew(o.userData.screw); return;
+  }
+  if (blocked) { blocked.shake = .3; sfx.buzz(); haptic(25); toast('That screw is covered by a plate'); return; }
+  const lh = raycaster.intersectObjects(slots.filter(s => !s.open).map(s => s.lock), true);   // chạm lỗ bị khóa -> mở bằng Ad
+  if (lh.length && state.openSlots < MAX_SLOTS) watchAd(addHole);
+});
+
+function detachScrew(s){                 // ốc rời khỏi mọi thanh nó đang giữ -> cập nhật trạng thái các thanh đó
+  s.removed = true;
+  for (const p of plates) if (p.holders.delete(s)) updatePlateState(p);
+}
+function freeSlot(){
+  for (const i of slotOrder()) { const s = slots[i]; if (s.open && !s.screw) return s; }
+  return null;
+}
+function pullScrew(s){
+  const box = boxes[state.boxIdx];
+  setHint(null);
+  if (box && box.reserved < 3 && s.color === box.color) {
+    const i = box.reserved++;
+    detachScrew(s); sendToBox(s, box, i, false);
+    if (box.reserved === 3) { state.boxIdx++; flushBuffer(); }
+  } else {
+    const slot = freeSlot();
+    if (!slot) { sfx.buzz(); toast('Slots are full! Only take screws that match the box'); return; }
+    detachScrew(s); slot.screw = s;
+    flyTo(s, () => slot.pos, () => { s.mesh.position.copy(slot.pos); s.mesh.scale.setScalar(1); sfx.clack(); }, false, false);
+    if (!freeSlot()) toast('Slots full! Match the box color');
+  }
+  sfx.click(); haptic(10);
+  updateHud(); evaluate();
+}
+function sendToBox(s, box, i, skipLift){
+  flyTo(s, () => boxTarget(box, i), () => {
+    box.group.add(s.mesh); s.mesh.position.set(SOCK[i], 0, .6); s.mesh.scale.setScalar(.85); s.mesh.rotation.set(0, 0, 0);
+    box.arrived++; state.delivered++; sfx.clack();
+    if (box.arrived === 3) completeBox(box);
+    if (state.delivered === screws.length) onWin();
+  }, skipLift, true);
+}
+/* Khi hộp mới mở, ốc cùng màu đang nằm ở lỗ chờ tự bay vào hộp */
+function flushBuffer(){
+  let changed = true;
+  while (changed) {
+    changed = false;
+    const box = boxes[state.boxIdx]; if (!box) break;
+    for (const sl of slots) {
+      if (sl.screw && sl.screw.color === box.color && box.reserved < 3) {
+        const s = sl.screw; sl.screw = null; const i = box.reserved++;
+        sendToBox(s, box, i, true); changed = true;
+        if (box.reserved === 3) state.boxIdx++;
+      }
+    }
+  }
+}
+/* Bay theo đường cong Bezier bậc 2; giai đoạn 'lift' xoay ngược chiều kim đồng hồ 720° và nâng lên 0.15s */
+function flyTo(s, targetFn, onArrive, skipLift, shrink){
+  const m = s.mesh;
+  s.anim = {phase:skipLift ? 'fly' : 'lift', t:0, base:m.position.z, rot0:m.rotation.z, target:targetFn, onArrive, shrink, from:new THREE.Vector3(), ctrl:new THREE.Vector3(), dur:.5};
+  if (skipLift) beginFly(s);
+}
+function beginFly(s){
+  const a = s.anim, to = a.target();
+  a.phase = 'fly'; a.t = 0; a.from.copy(s.mesh.position);
+  a.ctrl.copy(a.from).lerp(to, .5); a.ctrl.z += 3.5; a.ctrl.x += (to.x - a.from.x)*.1;
+  a.dur = Math.min(.7, .38 + a.from.distanceTo(to)*.025);
+}
+const _q = new THREE.Vector3();
+function updateScrews(dt){
+  for (const s of screws) {
+    const a = s.anim; if (!a) continue;
+    a.t += dt;
+    if (a.phase === 'lift') {
+      const e = 1 - Math.pow(1 - Math.min(a.t/.15, 1), 3);
+      s.mesh.rotation.z = a.rot0 + Math.PI*4*e; s.mesh.position.z = a.base + 1.4*e;
+      if (a.t >= .15) beginFly(s);
+    } else {
+      const u = Math.min(a.t/a.dur, 1), e = u < .5 ? 2*u*u : 1 - Math.pow(-2*u + 2, 2)/2, to = a.target();
+      _q.copy(a.from).multiplyScalar((1 - e)*(1 - e)).addScaledVector(a.ctrl, 2*(1 - e)*e).addScaledVector(to, e*e);
+      s.mesh.position.copy(_q); s.mesh.rotation.z += dt*10*(1 - u);
+      if (a.shrink) s.mesh.scale.setScalar(1 - .15*e);
+      if (u >= 1) { const cb = a.onArrive; s.anim = null; cb(); }
+    }
+  }
+}
+
+/* =====================================================================
+   7. GỢI Ý, THẮNG / THUA, QUẢNG CÁO GIẢ LẬP, HUD
+   ===================================================================== */
+function setHint(s){ hintTarget = s; hintRing.visible = !!s; }
+function computeHint(){                  // nước đi tiếp theo theo bộ giải (từ trạng thái hiện tại)
+  let rem = 0, buf = 0;
+  screws.forEach((s, i) => { if (s.removed) rem |= 1 << i; });
+  slots.forEach(sl => { if (sl.screw) buf |= 1 << sl.screw.idx; });
+  const path = solvePath(state.L, state.openSlots, rem, buf, state.model);
+  if (path && path.length) return screws[path[0]];
+  const box = boxes[state.boxIdx];
+  return box ? (screws.find(s => !s.removed && s.color === box.color && !blockerOf(s)) || null) : null;
+}
+function showHint(){
+  if (state.mode !== 'play') return;
+  const s = computeHint();
+  if (s) { setHint(s); toast('Try this screw'); }
+  else toast('No safe move left. Try adding a slot!');
+}
+function isStuck(){        // thua: lỗ chờ đã đầy và không còn ốc đúng màu hộp hiện tại nào lấy được (tính theo tư thế cuối của thanh,
+                           // để thanh đang đung đưa tạm thời che ốc không gây thua oan)
+  const left = screws.filter(s => !s.removed);
+  if (!left.length) return false;
+  if (slots.some(s => s.open && !s.screw)) return false;
+  const box = boxes[state.boxIdx]; if (!box) return false;
+  let rem = 0; screws.forEach((s, i) => { if (s.removed) rem |= 1 << i; });
+  return !left.some(s => s.color === box.color && !state.model.blocked(s.idx, rem));
+}
+function evaluate(){
+  if (state.mode !== 'play') return;
+  const token = state.loadId;
+  setTimeout(() => { if (token === state.loadId && state.mode === 'play' && isStuck()) onLose(); }, 700);
+}
+function onWin(){
+  if (state.mode !== 'play') return;
+  state.mode = 'won'; const token = state.loadId; setHint(null);
+  setTimeout(() => {
+    if (token !== state.loadId) return;
+    sfx.win(); haptic([30, 40, 30]);
+    setTimeout(() => { if (token === state.loadId && !prefetched) prefetched = {n:state.level + 1, L:makeLevel(state.level + 1)}; }, 80);   // tính trước màn kế tiếp khi bảng thắng đang hiện
+    spawnConfetti(-3, 5, 30); spawnConfetti(3, 5, 30);
+    showOverlay('Level Complete!', 'Level ' + (state.level + 1) + ' cleared. Nice!', [
+      ['Next Level ▶', 'btn', () => loadLevel(state.level + 1)],
+      ['Replay', 'btn grey', () => loadLevel(state.level)]]);
+  }, 900);
+  updateHud();
+}
+function onLose(){
+  state.mode = 'lost'; setHint(null); sfx.buzz();
+  const btns = [];
+  if (state.openSlots < MAX_SLOTS) btns.push(['▶ Watch Ad: +1 Slot', 'btn', () => watchAd(addHole)]);
+  btns.push(['Try Again', 'btn red', () => loadLevel(state.level)]);
+  showOverlay('Out of space!', 'All slots are full and no screw matches the box.', btns);
+  updateHud();
+}
+function addHole(){
+  if (state.openSlots >= MAX_SLOTS) return;
+  state.openSlots++; refreshSlots(); updateHud(); toast('+1 slot unlocked!');
+}
+/* Quảng cáo thưởng GIẢ LẬP: đếm ngược 3 giây rồi cộng thưởng. Khi xuất bản, thay bằng SDK quảng cáo thật. */
+function watchAd(reward){
+  if (state.mode === 'ad') return;
+  const token = state.loadId; state.mode = 'ad'; let n = 3; updateHud();
+  const tick = () => {
+    if (token !== state.loadId) return;
+    if (n === 0) { hideOverlay(); state.mode = 'play'; reward(); updateHud(); evaluate(); return; }
+    showOverlay('Rewarded ad (demo)', 'Reward in ' + n + '…', []);
+    n--; setTimeout(tick, 1000);
+  };
+  tick();
+}
+function showOverlay(title, text, btns){
+  $('ovTitle').textContent = title; $('ovText').textContent = text;
+  const box = $('ovBtns'); box.innerHTML = '';
+  btns.forEach(([label, cls, fn]) => { const b = document.createElement('button'); b.className = cls; b.textContent = label; b.onclick = fn; box.appendChild(b); });
+  $('overlay').classList.add('show');
+}
+function hideOverlay(){ $('overlay').classList.remove('show'); }
+function updateHud(){
+  const left = screws.filter(s => !s.removed).length;
+  $('level').textContent = 'LEVEL ' + String(state.level + 1).padStart(2, '0');
+  $('sub').textContent = left + (left === 1 ? ' screw left' : ' screws left');
+  $('holes').textContent = 'Slots ' + state.openSlots + '/' + MAX_SLOTS;
+  const play = state.mode === 'play';
+  $('addHole').disabled = !play || state.openSlots >= MAX_SLOTS;
+  $('hintBtn').disabled = !play;
+}
+$('addHole').onclick = () => { if (state.mode === 'play' && state.openSlots < MAX_SLOTS) watchAd(addHole); };
+$('hintBtn').onclick = showHint;
+$('replay').onclick = () => { if (state.mode !== 'ad') loadLevel(state.level); };
+function paintSound(){ $('sound').textContent = muted ? '🔇' : '🔊'; }
+$('sound').onclick = () => { muted = !muted; try { localStorage.setItem('sj3d-muted', muted ? '1' : '0'); } catch(e){} paintSound(); audio(); };
+paintSound();
+
+/* =====================================================================
+   8. VÒNG LẶP TRÒ CHƠI
+   ===================================================================== */
+let last = performance.now();
+function frame(now){
+  const dt = Math.min(Math.max((now - last)/1000, 0), 1/20); last = now; state.t += dt;
+  const steps = Math.max(1, Math.ceil(dt/(1/120)));          // bước vật lý nhỏ để con lắc ổn định
+  for (let i = 0; i < steps; i++) stepPlates(dt/steps);
+  plates.forEach(p => { if (!p.removed) syncPlate(p, dt); });
+  updateScrews(dt); updateBoxes(dt);
+  for (let i = confetti.length - 1; i >= 0; i--) {
+    const c = confetti[i]; c.life -= dt; c.vy -= 16*dt;
+    c.m.position.x += c.vx*dt; c.m.position.y += c.vy*dt; c.m.position.z += c.vz*dt; c.m.rotation.z += c.vr*dt; c.m.rotation.x += c.vr*dt;
+    c.m.material.opacity = Math.max(0, Math.min(1, c.life*2));
+    if (c.life <= 0) { world.remove(c.m); c.m.material.dispose(); confetti.splice(i, 1); }
+  }
+  // gợi ý tự động ở 2 màn đầu nếu người chơi đứng yên 7 giây
+  if (state.mode === 'play') { state.idle += dt; if (state.level < 2 && state.idle > 7 && !hintTarget) { const s = computeHint(); if (s) setHint(s); } }
+  if (hintTarget && !hintTarget.removed) {
+    const m = hintTarget.mesh; hintRing.position.set(m.position.x, m.position.y, m.position.z + .5);
+    hintRing.scale.setScalar(1 + .16*Math.sin(state.t*8)); hintRing.visible = true;
+  } else if (hintTarget) setHint(null);
+  renderer.render(scene, camera);
+  requestAnimationFrame(frame);
+}
+
+/* =====================================================================
+   9. CHẾ ĐỘ TỰ KIỂM TRA (?auto=<số màn>&start=<màn bắt đầu>&stop=<số nước>): tự chơi theo lời giải
+      bằng sự kiện chạm thật (raycaster) để kiểm tra toàn bộ vòng lặp. Không ảnh hưởng người chơi thường.
+   ===================================================================== */
+function clickScrew(s){
+  const v = new THREE.Vector3(); s.mesh.getWorldPosition(v); v.project(camera);
+  const r = canvas.getBoundingClientRect();
+  canvas.dispatchEvent(new PointerEvent('pointerdown', {clientX:r.left + (v.x*.5 + .5)*r.width, clientY:r.top + (-v.y*.5 + .5)*r.height, bubbles:true}));
+}
+async function runAuto(){
+  const sleep = ms => new Promise(r => setTimeout(r, ms));
+  const start = state.level, count = +QS.get('auto') || 1, stop = +QS.get('stop') || 0, out = [];
+  const log = () => {
+    let el = $('autoresult');
+    if (!el) { el = document.createElement('pre'); el.id = 'autoresult'; el.style.cssText = 'position:fixed;left:0;top:0;opacity:0;pointer-events:none'; document.body.appendChild(el); }
+    el.textContent = JSON.stringify(out); document.title = 'AUTO ' + JSON.stringify(out);
+  };
+  for (let lv = start; lv < start + count; lv++) {
+    loadLevel(lv); await sleep(300);
+    const path = solvePath(state.L, 3, 0, 0, state.model), rec = {level:lv + 1, screws:screws.length, moves:path ? path.length : null, result:'?'};
+    out.push(rec); log();
+    if (!path) { rec.result = 'NO_PATH'; continue; }
+    let mv = 0;
+    for (const idx of path) {
+      const s = screws[idx]; let w = 0;
+      while (blockerOf(s) && w < 60) { await sleep(100); w++; }
+      if (blockerOf(s)) { rec.result = 'BLOCKED@' + mv; break; }
+      clickScrew(s); mv++;
+      if (stop && mv >= stop) { rec.result = 'STOPPED'; log(); return; }
+      await sleep(380);
+      if (state.mode === 'lost') {
+        rec.result = 'LOST@' + mv;
+        rec.dbg = {box:boxes[state.boxIdx] && boxes[state.boxIdx].color, slots:slots.map(sl => sl.open ? (sl.screw ? sl.screw.color + sl.screw.idx : '-') : 'x'),
+          path:path.join(','), left:screws.filter(s => !s.removed).map(s => s.idx + s.color + (blockerOf(s) ? '^' + blockerOf(s).id : '')),
+          plates:plates.map(p => p.id + ':' + p.state + (p.removed ? '(gone)' : ''))};
+        break;
+      }
+    }
+    if (rec.result === '?') { let w = 0; while (state.mode === 'play' && w < 80) { await sleep(100); w++; } rec.result = state.mode === 'won' ? 'WON' : state.mode.toUpperCase(); }
+    rec.ms = Math.round(state.t*1000); log();
+  }
+  log();
+}
+
+loadLevel(state.level);
+requestAnimationFrame(frame);
+if (QS.has('auto')) runAuto();
+if (QS.has('auto') || QS.has('debug')) window.__sj = {state, loadLevel, makeLevel, solvePath, pullScrew, showHint, watchAd, addHole, blockerOf, get hintVisible(){ return hintRing.visible; }, get info(){ return renderer.info.memory; }, get slots(){ return slots; }, get boxes(){ return boxes; }, get screws(){ return screws; }, get plates(){ return plates; }};
+
+})();
+</script>
+</body>
+</html>
