@@ -49,13 +49,36 @@
   #card h2{margin:0 0 6px;font-size:30px}
   #card p{margin:0 0 14px;color:var(--grey);font-weight:500;line-height:1.35}
   #card .btn{display:block;width:100%;margin-top:10px}
+  #screen{position:fixed;inset:0;display:none;background:rgba(244,239,234,.98);z-index:50;overflow:auto;padding:16px;-webkit-overflow-scrolling:touch}
+  #screen.show{display:flex}
+  #screen .panel{width:min(92vw,380px);text-align:center;margin:auto;padding:8px 0 24px}
+  .logo{width:92px;height:92px;border-radius:22px;box-shadow:0 6px 0 rgba(0,0,0,.1)}
+  .panel h1{margin:10px 0 0;font-size:34px}.panel h2{margin:4px 0 4px;font-size:28px}
+  .tag{color:var(--grey);font-weight:600;margin-bottom:12px}.subtle{color:var(--grey);font-weight:500;margin:0 0 6px;font-size:14px}
+  .chips{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-bottom:14px}
+  .chip{background:#fff;border-radius:999px;padding:6px 12px;font-weight:700;font-size:14px;box-shadow:0 2px 0 rgba(0,0,0,.08)}
+  .panel .btn{display:block;width:100%;margin-top:10px}
+  .btn.big{font-size:20px;padding:16px}
+  .row{display:flex;gap:10px}.row .btn{flex:1}
+  .dot{display:inline-block;width:10px;height:10px;border-radius:50%;background:#EB3B5A;margin-left:6px;vertical-align:middle}
+  .stars{color:#FFA801;letter-spacing:2px}.stars.big{font-size:44px;letter-spacing:6px}
+  .winstars{margin:2px 0 8px}.winlines{margin:0 0 12px;font-weight:600;line-height:1.5;color:#5a5866}
+  .lvgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:14px}
+  .lv{border:0;border-radius:14px;background:#fff;padding:10px 4px;font:inherit;font-weight:700;font-size:18px;box-shadow:0 3px 0 rgba(0,0,0,.1);cursor:pointer;color:var(--ink)}
+  .lv small{display:block;font-size:13px;color:#FFA801;letter-spacing:1px;margin-top:2px}
+  .lv.new{background:var(--green);color:#fff}.lv.new small{color:#fff}
+  .gcard{background:#fff;border-radius:16px;padding:12px 14px;margin-top:10px;text-align:left;box-shadow:0 3px 0 rgba(0,0,0,.08)}
+  .gcard b{font-size:16px}.gcard p{margin:4px 0 0;color:#5a5866;font-size:14px;line-height:1.35}
+  .new-badge{background:#EB3B5A;color:#fff;font-size:11px;border-radius:8px;padding:1px 6px;margin-left:6px;vertical-align:middle}
+  .ghead{margin:18px 0 0;text-align:left;font-size:13px;letter-spacing:1px;color:var(--grey);font-weight:700}
+  .note{background:#fff3cd;border-radius:14px;padding:10px 12px;margin-bottom:12px;text-align:left;font-size:14px}
   #fatal{position:fixed;inset:0;display:none;align-items:center;justify-content:center;padding:24px;text-align:center;font-weight:600;font-size:18px}
 </style>
 </head>
 <body>
 <canvas id="c" tabindex="-1"></canvas>
 <div id="top">
-  <button class="round" id="sound" aria-label="Sound on/off">🔊</button>
+  <button class="round" id="menuBtn" aria-label="Menu">☰</button>
   <div id="mid"><div id="level">LEVEL 01</div><div id="sub">&nbsp;</div></div>
   <div class="pill" id="holes">Slots 3/5</div>
 </div>
@@ -66,7 +89,8 @@
   <button class="btn" id="addHole">➕ Slot (Ad)</button>
   <button class="btn grey" id="replay" aria-label="Restart level">↻</button>
 </div>
-<div id="overlay"><div id="card"><h2 id="ovTitle"></h2><p id="ovText"></p><div id="ovBtns"></div></div></div>
+<div id="overlay"><div id="card"><h2 id="ovTitle"></h2><p id="ovText"></p><div id="ovExtra"></div><div id="ovBtns"></div></div></div>
+<div id="screen"></div>
 <div id="fatal">Could not load the 3D engine.<br>Please check your internet connection and reload the page.</div>
 
 <!-- Three.js r128 đặt cùng thư mục để chơi OFFLINE; nếu thiếu file thì tự tải từ CDN -->
@@ -297,10 +321,9 @@ function genLayout(rng, nS){
    để đúng độ khó: chu kỳ dễ -> dễ -> vừa -> khó (cần đủ 3 lỗ chờ) và luôn giải được. */
 const LAYOUT_BANK = [{"plates":[{"id":"A","x":-0.25,"y":-2.32,"w":9.1,"h":1.7,"a":-12.6,"l":0,"m":"wood"},{"id":"B","x":0.14,"y":-0.9,"w":7.8,"h":1.6,"a":10.4,"l":1,"m":"silver"},{"id":"C","x":-0.58,"y":0.77,"w":8.9,"h":1.8,"a":-12.5,"l":2,"m":"steel"},{"id":"D","x":-0.33,"y":2.21,"w":8.2,"h":2,"a":8.5,"l":3,"m":"silver"}],"screws":[{"p":"A","t":-0.06},{"p":"A","t":1.7},{"p":"B","t":-1.08},{"p":"B","t":2.75},{"p":"C","t":0.84},{"p":"C","t":-2.52},{"p":"D","t":2.45},{"p":"D","t":1.15},{"p":"A","t":-2.69}]},{"plates":[{"id":"A","x":-0.61,"y":-2.68,"w":8,"h":1.5,"a":-14.4,"l":0,"m":"wood"},{"id":"B","x":0.37,"y":-1.27,"w":8.1,"h":1.8,"a":8.1,"l":1,"m":"steel"},{"id":"C","x":0.51,"y":-0.15,"w":8.3,"h":2,"a":-13.6,"l":2,"m":"silver"},{"id":"D","x":-0.54,"y":1.39,"w":7.9,"h":1.9,"a":9.6,"l":3,"m":"wood"},{"id":"E","x":0.47,"y":2.62,"w":8.2,"h":1.9,"a":-10.1,"l":4,"m":"steel"}],"screws":[{"p":"C","t":2.95,"also":["B"]},{"p":"A","t":1.23},{"p":"A","t":-2.15},{"p":"B","t":1.62},{"p":"C","t":-0.14},{"p":"D","t":-2.68},{"p":"D","t":2.94},{"p":"E","t":-0.89},{"p":"E","t":0.36},{"p":"D","t":-0.69},{"p":"A","t":2.97},{"p":"E","t":-2.85}]},{"plates":[{"id":"A","x":0.11,"y":-2.52,"w":8.4,"h":1.6,"a":-14.1,"l":0,"m":"wood"},{"id":"B","x":-0.08,"y":-0.87,"w":7.5,"h":1.6,"a":10.2,"l":1,"m":"wood"},{"id":"C","x":-0.53,"y":0.82,"w":9,"h":2,"a":-15.7,"l":2,"m":"wood"},{"id":"D","x":-0.21,"y":2.29,"w":9.5,"h":2,"a":7.8,"l":3,"m":"steel"}],"screws":[{"p":"D","t":-3.77,"also":["C"]},{"p":"A","t":-0.52},{"p":"A","t":3.11},{"p":"B","t":2.25},{"p":"B","t":-0.6},{"p":"C","t":-2.17},{"p":"D","t":-0.09},{"p":"A","t":-3.25},{"p":"D","t":1.61}]},{"plates":[{"id":"A","x":0.17,"y":-2.71,"w":8.2,"h":1.7,"a":13.3,"l":0,"m":"steel"},{"id":"B","x":-0.11,"y":-1.31,"w":8.2,"h":1.6,"a":-7.8,"l":1,"m":"steel"},{"id":"C","x":0.39,"y":0,"w":7.7,"h":1.7,"a":14.1,"l":2,"m":"silver"},{"id":"D","x":-0.56,"y":1.38,"w":9,"h":1.7,"a":-6.9,"l":3,"m":"silver"},{"id":"E","x":-0.21,"y":2.67,"w":8.1,"h":2,"a":8.7,"l":4,"m":"silver"}],"screws":[{"p":"A","t":2.84},{"p":"A","t":-0.38},{"p":"B","t":-2.29},{"p":"B","t":0.6},{"p":"C","t":2.48},{"p":"C","t":-0.37},{"p":"D","t":-2.6},{"p":"D","t":1.52},{"p":"E","t":2.61},{"p":"E","t":0.79},{"p":"E","t":-0.81},{"p":"A","t":-2.36}]},{"plates":[{"id":"A","x":-0.51,"y":-2.29,"w":7.5,"h":1.5,"a":-10.4,"l":0,"m":"silver"},{"id":"B","x":-0.14,"y":-0.91,"w":9.5,"h":1.8,"a":9,"l":1,"m":"silver"},{"id":"C","x":0.64,"y":0.75,"w":9.3,"h":1.8,"a":-15.3,"l":2,"m":"silver"},{"id":"D","x":-0.27,"y":2.34,"w":7.6,"h":1.8,"a":7.3,"l":3,"m":"silver"}],"screws":[{"p":"A","t":1.56},{"p":"A","t":-2.72},{"p":"B","t":-0.16},{"p":"B","t":3.46},{"p":"C","t":0.76},{"p":"C","t":-3.44},{"p":"D","t":2.58},{"p":"D","t":-0.83},{"p":"D","t":1.04}]},{"plates":[{"id":"A","x":-0.09,"y":-2.52,"w":7.7,"h":1.5,"a":8.5,"l":0,"m":"silver"},{"id":"B","x":-0.42,"y":-1.44,"w":7.9,"h":1.6,"a":-6.2,"l":1,"m":"silver"},{"id":"C","x":0.17,"y":-0.1,"w":9.2,"h":1.8,"a":9.2,"l":2,"m":"silver"},{"id":"D","x":0.32,"y":1.43,"w":9,"h":2,"a":-9.3,"l":3,"m":"silver"},{"id":"E","x":0.23,"y":2.59,"w":8.7,"h":2,"a":7.7,"l":4,"m":"wood"}],"screws":[{"p":"E","t":-3.87,"also":["D"]},{"p":"A","t":-2.61},{"p":"A","t":-1.06},{"p":"B","t":1.5},{"p":"B","t":-3},{"p":"C","t":-0.06},{"p":"C","t":-2.5},{"p":"D","t":2.25},{"p":"E","t":1.79},{"p":"C","t":3.58},{"p":"D","t":-2.59},{"p":"E","t":-0.36}]},{"plates":[{"id":"A","x":0.47,"y":-2.68,"w":8,"h":1.6,"a":9.4,"l":0,"m":"wood"},{"id":"B","x":-0.39,"y":-1.28,"w":9,"h":1.7,"a":-11.2,"l":1,"m":"silver"},{"id":"C","x":-0.44,"y":0.12,"w":8.8,"h":1.6,"a":7.3,"l":2,"m":"silver"},{"id":"D","x":0.39,"y":1.32,"w":9.1,"h":1.9,"a":-11.4,"l":3,"m":"wood"},{"id":"E","x":0.32,"y":2.52,"w":8.5,"h":1.7,"a":9.1,"l":4,"m":"steel"}],"screws":[{"p":"E","t":-3.32,"also":["D"]},{"p":"A","t":2.7},{"p":"A","t":-1.86},{"p":"B","t":2.21},{"p":"B","t":0.7},{"p":"C","t":-1.39},{"p":"C","t":2.76},{"p":"D","t":3.6},{"p":"E","t":0.75},{"p":"B","t":-3.47},{"p":"E","t":3.26},{"p":"E","t":-1.1}]},{"plates":[{"id":"A","x":-0.28,"y":-2.62,"w":7.7,"h":1.8,"a":7.4,"l":0,"m":"wood"},{"id":"B","x":0.2,"y":-1.37,"w":9.2,"h":1.7,"a":-9.8,"l":1,"m":"steel"},{"id":"C","x":-0.41,"y":0.1,"w":7.6,"h":2,"a":10.2,"l":2,"m":"steel"},{"id":"D","x":-0.15,"y":1.4,"w":8.8,"h":1.7,"a":-11.3,"l":3,"m":"silver"},{"id":"E","x":0.27,"y":2.58,"w":7.9,"h":1.7,"a":6.6,"l":4,"m":"steel"}],"screws":[{"p":"A","t":-2.65},{"p":"A","t":-1.18},{"p":"B","t":-3.18},{"p":"B","t":3.2},{"p":"C","t":-0.95},{"p":"C","t":2.7},{"p":"D","t":1.12},{"p":"D","t":-2.84},{"p":"E","t":-0.31},{"p":"E","t":-1.58},{"p":"E","t":2.4},{"p":"B","t":1.87}]},{"plates":[{"id":"A","x":0.67,"y":-2.62,"w":8.8,"h":1.8,"a":-11.2,"l":0,"m":"wood"},{"id":"B","x":0.62,"y":-1.23,"w":7.5,"h":1.9,"a":10.3,"l":1,"m":"silver"},{"id":"C","x":-0.14,"y":0.15,"w":9,"h":1.8,"a":-11.4,"l":2,"m":"silver"},{"id":"D","x":0.3,"y":1.4,"w":8.6,"h":1.6,"a":7.8,"l":3,"m":"steel"},{"id":"E","x":0.44,"y":2.54,"w":7.5,"h":2,"a":-15.5,"l":4,"m":"steel"}],"screws":[{"p":"C","t":4.04,"also":["B"]},{"p":"E","t":2.81,"also":["D"]},{"p":"A","t":1.8},{"p":"A","t":-2.53},{"p":"B","t":-0.75},{"p":"C","t":-3.24},{"p":"D","t":-1.53},{"p":"E","t":-0.42},{"p":"D","t":1.49},{"p":"E","t":-2.33},{"p":"C","t":0.83},{"p":"A","t":3.22}]},{"plates":[{"id":"A","x":0.31,"y":-2.6,"w":9.1,"h":1.8,"a":-11.1,"l":0,"m":"silver"},{"id":"B","x":-0.08,"y":-1.4,"w":8.2,"h":1.8,"a":13.7,"l":1,"m":"steel"},{"id":"C","x":-0.32,"y":-0.02,"w":8.2,"h":1.9,"a":-6.3,"l":2,"m":"steel"},{"id":"D","x":-0.2,"y":1.21,"w":7.9,"h":1.9,"a":9.1,"l":3,"m":"steel"},{"id":"E","x":-0.19,"y":2.65,"w":8.4,"h":2,"a":-10.2,"l":4,"m":"steel"}],"screws":[{"p":"B","t":-2.63,"also":["A"]},{"p":"A","t":2.8},{"p":"B","t":2.71},{"p":"C","t":1.03},{"p":"C","t":-2.69},{"p":"D","t":-1.25},{"p":"D","t":2.81},{"p":"E","t":-3},{"p":"E","t":1.32},{"p":"B","t":-0.8},{"p":"E","t":-1.54},{"p":"E","t":-0.13}]},{"plates":[{"id":"A","x":0.01,"y":-2.32,"w":8.6,"h":1.6,"a":-9.6,"l":0,"m":"wood"},{"id":"B","x":-0.41,"y":-0.99,"w":9.4,"h":1.5,"a":10.9,"l":1,"m":"steel"},{"id":"C","x":0.05,"y":0.61,"w":8.6,"h":1.9,"a":-12.2,"l":2,"m":"steel"},{"id":"D","x":0.21,"y":2.17,"w":9.5,"h":2,"a":8.2,"l":3,"m":"steel"}],"screws":[{"p":"C","t":3.78,"also":["B"]},{"p":"A","t":0.59},{"p":"A","t":-3.17},{"p":"B","t":2.96},{"p":"C","t":-2.98},{"p":"D","t":0.4},{"p":"D","t":2.64},{"p":"A","t":3},{"p":"C","t":0.18}]},{"plates":[{"id":"A","x":-0.02,"y":-2.47,"w":9.5,"h":1.9,"a":8.7,"l":0,"m":"steel"},{"id":"B","x":-0.02,"y":-0.77,"w":7.5,"h":2,"a":-12.9,"l":1,"m":"steel"},{"id":"C","x":0.62,"y":0.57,"w":8.2,"h":1.8,"a":9,"l":2,"m":"silver"},{"id":"D","x":-0.54,"y":2.32,"w":9.3,"h":1.6,"a":-15.4,"l":3,"m":"steel"}],"screws":[{"p":"A","t":-1.84},{"p":"A","t":0.29},{"p":"B","t":1.98},{"p":"B","t":-2.37},{"p":"C","t":-0.45},{"p":"C","t":2.65},{"p":"D","t":1.17},{"p":"D","t":-2.69},{"p":"A","t":3.14}]},{"plates":[{"id":"A","x":-0.46,"y":-2.26,"w":8.6,"h":1.8,"a":6.5,"l":0,"m":"wood"},{"id":"B","x":-0.45,"y":-0.83,"w":7.7,"h":1.5,"a":-15.6,"l":1,"m":"silver"},{"id":"C","x":-0.39,"y":0.73,"w":8.4,"h":1.8,"a":8.9,"l":2,"m":"steel"},{"id":"D","x":0.17,"y":2.31,"w":9.4,"h":1.8,"a":-15.8,"l":3,"m":"wood"}],"screws":[{"p":"A","t":3.23},{"p":"A","t":0.08},{"p":"B","t":1.51},{"p":"B","t":-2.9},{"p":"C","t":-1.4},{"p":"C","t":2.93},{"p":"D","t":-2.77},{"p":"D","t":0.46},{"p":"A","t":-2.03}]},{"plates":[{"id":"A","x":0.31,"y":-2.57,"w":9.1,"h":1.7,"a":6.5,"l":0,"m":"steel"},{"id":"B","x":0,"y":-1.44,"w":9.2,"h":1.8,"a":-7.3,"l":1,"m":"steel"},{"id":"C","x":0.15,"y":0.06,"w":9.1,"h":1.5,"a":13.5,"l":2,"m":"silver"},{"id":"D","x":-0.16,"y":1.19,"w":9.6,"h":1.7,"a":-8.1,"l":3,"m":"wood"},{"id":"E","x":-0.1,"y":2.62,"w":7.5,"h":2,"a":15.8,"l":4,"m":"wood"}],"screws":[{"p":"D","t":3.18,"also":["C"]},{"p":"A","t":2.81},{"p":"A","t":-3.07},{"p":"B","t":-0.48},{"p":"B","t":-3.22},{"p":"C","t":-2.19},{"p":"D","t":-2.77},{"p":"E","t":-0.22},{"p":"E","t":1.93},{"p":"A","t":-1.55},{"p":"D","t":0.76},{"p":"B","t":1.98}]},{"plates":[{"id":"A","x":0.03,"y":-2.53,"w":7.6,"h":1.5,"a":14.3,"l":0,"m":"wood"},{"id":"B","x":-0.03,"y":-0.83,"w":9,"h":2,"a":-9.9,"l":1,"m":"wood"},{"id":"C","x":0.13,"y":0.83,"w":7.6,"h":1.7,"a":15.8,"l":2,"m":"wood"},{"id":"D","x":0.23,"y":2.35,"w":8.2,"h":1.7,"a":-10.6,"l":3,"m":"steel"}],"screws":[{"p":"A","t":2.81},{"p":"A","t":-2.38},{"p":"B","t":-2.88},{"p":"B","t":-0.08},{"p":"C","t":-1.36},{"p":"C","t":2.76},{"p":"D","t":-0.39},{"p":"D","t":1.23},{"p":"C","t":0}]},{"plates":[{"id":"A","x":0.44,"y":-2.56,"w":8.6,"h":1.6,"a":7.2,"l":0,"m":"silver"},{"id":"B","x":-0.07,"y":-1.22,"w":9.5,"h":1.6,"a":-10.9,"l":1,"m":"steel"},{"id":"C","x":0.68,"y":-0.04,"w":9.2,"h":1.6,"a":7.1,"l":2,"m":"wood"},{"id":"D","x":-0.13,"y":1.28,"w":8.7,"h":1.7,"a":-13.3,"l":3,"m":"silver"},{"id":"E","x":0.45,"y":2.59,"w":8.7,"h":2,"a":7.9,"l":4,"m":"silver"}],"screws":[{"p":"E","t":-3.89,"also":["D"]},{"p":"A","t":3.01},{"p":"A","t":-2.27},{"p":"B","t":1.68},{"p":"B","t":-2.55},{"p":"C","t":2.75},{"p":"C","t":-0.97},{"p":"D","t":1.36},{"p":"E","t":2.09},{"p":"E","t":-1.86},{"p":"A","t":-0.56},{"p":"E","t":0.47}]},{"plates":[{"id":"A","x":-0.27,"y":-2.73,"w":8.3,"h":2,"a":-11.9,"l":0,"m":"wood"},{"id":"B","x":0.26,"y":-1.15,"w":9.4,"h":1.7,"a":8.4,"l":1,"m":"silver"},{"id":"C","x":-0.21,"y":-0.07,"w":8.9,"h":2,"a":-6.6,"l":2,"m":"silver"},{"id":"D","x":0.42,"y":1.36,"w":9.1,"h":1.9,"a":9.5,"l":3,"m":"wood"},{"id":"E","x":-0.64,"y":2.68,"w":7.5,"h":1.7,"a":-14.2,"l":4,"m":"wood"}],"screws":[{"p":"A","t":1.85},{"p":"A","t":3.24},{"p":"B","t":-2.25},{"p":"B","t":2.07},{"p":"C","t":1.34},{"p":"C","t":-3.1},{"p":"D","t":1.63},{"p":"D","t":-0.99},{"p":"E","t":1.14},{"p":"E","t":-0.85},{"p":"A","t":-3.2},{"p":"E","t":-2.57}]},{"plates":[{"id":"A","x":-0.46,"y":-2.68,"w":8.9,"h":1.8,"a":-7.1,"l":0,"m":"steel"},{"id":"B","x":0.48,"y":-1.2,"w":7.5,"h":1.9,"a":14.1,"l":1,"m":"silver"},{"id":"C","x":-0.35,"y":0,"w":7.4,"h":1.7,"a":-6.3,"l":2,"m":"wood"},{"id":"D","x":-0.6,"y":1.35,"w":8.2,"h":1.7,"a":11.9,"l":3,"m":"steel"},{"id":"E","x":-0.36,"y":2.5,"w":7.6,"h":1.9,"a":-8.2,"l":4,"m":"steel"}],"screws":[{"p":"E","t":3.13,"also":["D"]},{"p":"A","t":3.15},{"p":"A","t":-2.13},{"p":"B","t":-0.89},{"p":"B","t":2.4},{"p":"C","t":0.3},{"p":"C","t":1.66},{"p":"D","t":-1.07},{"p":"E","t":-1.11},{"p":"D","t":2.14},{"p":"E","t":-2.74},{"p":"D","t":-2.6}]},{"plates":[{"id":"A","x":-0.14,"y":-2.68,"w":8.5,"h":1.7,"a":-12.9,"l":0,"m":"silver"},{"id":"B","x":0.38,"y":-1.22,"w":7.7,"h":1.5,"a":11.3,"l":1,"m":"silver"},{"id":"C","x":0.28,"y":-0.06,"w":8.2,"h":2,"a":-6.4,"l":2,"m":"silver"},{"id":"D","x":0.06,"y":1.39,"w":8.5,"h":1.9,"a":13.3,"l":3,"m":"wood"},{"id":"E","x":0.05,"y":2.64,"w":9.4,"h":1.6,"a":-10.2,"l":4,"m":"silver"}],"screws":[{"p":"E","t":3.06,"also":["D"]},{"p":"A","t":1.92},{"p":"A","t":-2.55},{"p":"B","t":2.42},{"p":"B","t":-1.57},{"p":"C","t":-3.06},{"p":"C","t":0.49},{"p":"D","t":-1.05},{"p":"E","t":-0.45},{"p":"E","t":-1.95},{"p":"E","t":1.63},{"p":"A","t":0.19}]},{"plates":[{"id":"A","x":0.36,"y":-2.73,"w":7.8,"h":1.8,"a":-10.9,"l":0,"m":"silver"},{"id":"B","x":-0.49,"y":-1.4,"w":9,"h":1.9,"a":11.5,"l":1,"m":"silver"},{"id":"C","x":-0.29,"y":-0.09,"w":8.9,"h":1.9,"a":-8.5,"l":2,"m":"wood"},{"id":"D","x":-0.26,"y":1.25,"w":9.2,"h":2,"a":8.1,"l":3,"m":"wood"},{"id":"E","x":0.27,"y":2.65,"w":9.3,"h":1.5,"a":-13.2,"l":4,"m":"wood"}],"screws":[{"p":"E","t":3.61,"also":["D"]},{"p":"C","t":3.64,"also":["B"]},{"p":"A","t":-2.65},{"p":"A","t":1.38},{"p":"B","t":-0.56},{"p":"C","t":-3.03},{"p":"D","t":-0.13},{"p":"E","t":-1.54},{"p":"B","t":2.48},{"p":"E","t":2.22},{"p":"E","t":-2.85},{"p":"A","t":2.81}]},{"plates":[{"id":"A","x":-0.63,"y":-2.64,"w":8,"h":1.6,"a":7.7,"l":0,"m":"silver"},{"id":"B","x":-0.53,"y":-1.19,"w":8.2,"h":1.9,"a":-14.4,"l":1,"m":"silver"},{"id":"C","x":0.36,"y":0.03,"w":7.8,"h":1.7,"a":6.9,"l":2,"m":"wood"},{"id":"D","x":0.42,"y":1.19,"w":9.6,"h":1.6,"a":-10.4,"l":3,"m":"silver"},{"id":"E","x":-0.49,"y":2.66,"w":7.5,"h":1.5,"a":14.1,"l":4,"m":"steel"}],"screws":[{"p":"E","t":-3.09,"also":["D"]},{"p":"A","t":-0.13},{"p":"A","t":2.62},{"p":"B","t":-2.37},{"p":"B","t":0.95},{"p":"C","t":-1.28},{"p":"C","t":2.74},{"p":"D","t":-0.93},{"p":"E","t":2.49},{"p":"E","t":-1.43},{"p":"D","t":1.02},{"p":"A","t":-2.18}]},{"plates":[{"id":"A","x":-0.18,"y":-2.67,"w":7.9,"h":1.7,"a":-7.3,"l":0,"m":"steel"},{"id":"B","x":0.35,"y":-1.33,"w":9.5,"h":2,"a":10.3,"l":1,"m":"wood"},{"id":"C","x":-0.06,"y":-0.08,"w":9.1,"h":1.9,"a":-6.3,"l":2,"m":"steel"},{"id":"D","x":-0.3,"y":1.42,"w":7.9,"h":1.9,"a":9.5,"l":3,"m":"wood"},{"id":"E","x":-0.57,"y":2.69,"w":8.7,"h":2,"a":-13.4,"l":4,"m":"steel"}],"screws":[{"p":"E","t":3.33,"also":["D"]},{"p":"A","t":-2.47},{"p":"A","t":1.46},{"p":"B","t":-1.14},{"p":"B","t":2.45},{"p":"C","t":-0.02},{"p":"C","t":1.54},{"p":"D","t":-2.6},{"p":"E","t":0.59},{"p":"D","t":1.69},{"p":"E","t":-3.35},{"p":"E","t":-0.87}]},{"plates":[{"id":"A","x":-0.56,"y":-2.72,"w":9.4,"h":1.7,"a":-10.1,"l":0,"m":"steel"},{"id":"B","x":-0.2,"y":-1.26,"w":8.3,"h":1.7,"a":12.5,"l":1,"m":"steel"},{"id":"C","x":-0.69,"y":0.14,"w":7.6,"h":1.6,"a":-10.3,"l":2,"m":"wood"},{"id":"D","x":-0.3,"y":1.33,"w":8.2,"h":1.7,"a":12.8,"l":3,"m":"silver"},{"id":"E","x":0.58,"y":2.53,"w":9.4,"h":2,"a":-11.3,"l":4,"m":"wood"}],"screws":[{"p":"E","t":2.39,"also":["D"]},{"p":"D","t":-3.16,"also":["C"]},{"p":"A","t":2.37},{"p":"A","t":0.33},{"p":"B","t":2.57},{"p":"B","t":-0.57},{"p":"C","t":1.72},{"p":"E","t":-2.89},{"p":"A","t":-2.7},{"p":"D","t":2.02},{"p":"E","t":-0.21},{"p":"D","t":-0.84}]},{"plates":[{"id":"A","x":-0.06,"y":-2.64,"w":9.3,"h":1.5,"a":-7.1,"l":0,"m":"steel"},{"id":"B","x":-0.22,"y":-1.38,"w":8.1,"h":1.6,"a":10.9,"l":1,"m":"steel"},{"id":"C","x":0.49,"y":-0.1,"w":8.4,"h":1.6,"a":-10.6,"l":2,"m":"silver"},{"id":"D","x":0.54,"y":1.3,"w":8.3,"h":1.6,"a":10,"l":3,"m":"silver"},{"id":"E","x":-0.51,"y":2.61,"w":9.5,"h":1.7,"a":-10,"l":4,"m":"silver"}],"screws":[{"p":"E","t":4.31,"also":["D"]},{"p":"A","t":3.51},{"p":"A","t":-3.46},{"p":"B","t":2.86},{"p":"B","t":-2.1},{"p":"C","t":0.22},{"p":"C","t":-3.17},{"p":"D","t":-1.88},{"p":"E","t":-1.35},{"p":"B","t":0.03},{"p":"E","t":-3.02},{"p":"E","t":0.82}]},{"plates":[{"id":"A","x":-0.1,"y":-2.7,"w":7.7,"h":1.9,"a":-14.7,"l":0,"m":"steel"},{"id":"B","x":0.23,"y":-1.19,"w":9.2,"h":1.8,"a":7.4,"l":1,"m":"steel"},{"id":"C","x":0.26,"y":-0.04,"w":7.7,"h":1.8,"a":-7.3,"l":2,"m":"wood"},{"id":"D","x":-0.07,"y":1.39,"w":8.3,"h":1.7,"a":7.6,"l":3,"m":"wood"},{"id":"E","x":-0.3,"y":2.48,"w":8.1,"h":1.7,"a":-9.7,"l":4,"m":"steel"}],"screws":[{"p":"A","t":-2.88},{"p":"A","t":1.44},{"p":"B","t":3.02},{"p":"B","t":-1.43},{"p":"C","t":-0.11},{"p":"C","t":1.49},{"p":"D","t":-3.14},{"p":"D","t":2.77},{"p":"E","t":-1.53},{"p":"E","t":1.46},{"p":"E","t":0},{"p":"D","t":-1.62}]},{"plates":[{"id":"A","x":0.42,"y":-2.71,"w":8.5,"h":1.9,"a":15.8,"l":0,"m":"silver"},{"id":"B","x":-0.28,"y":-1.34,"w":8.2,"h":1.8,"a":-8,"l":1,"m":"steel"},{"id":"C","x":-0.45,"y":-0.02,"w":9,"h":1.7,"a":9.6,"l":2,"m":"steel"},{"id":"D","x":-0.43,"y":1.24,"w":7.4,"h":1.7,"a":-11,"l":3,"m":"silver"},{"id":"E","x":0.31,"y":2.59,"w":8.1,"h":1.5,"a":11.8,"l":4,"m":"wood"}],"screws":[{"p":"A","t":-1.64},{"p":"A","t":-3.2},{"p":"B","t":1.36},{"p":"B","t":-3.14},{"p":"C","t":3.13},{"p":"C","t":-1.13},{"p":"D","t":0.69},{"p":"D","t":-2.53},{"p":"E","t":-1.11},{"p":"E","t":1.75},{"p":"B","t":2.96},{"p":"E","t":0.29}]},{"plates":[{"id":"A","x":-0.57,"y":-2.65,"w":7.9,"h":1.6,"a":8.7,"l":0,"m":"wood"},{"id":"B","x":-0.45,"y":-1.33,"w":9.3,"h":2,"a":-15.3,"l":1,"m":"steel"},{"id":"C","x":-0.35,"y":-0.11,"w":9.6,"h":1.7,"a":11,"l":2,"m":"wood"},{"id":"D","x":-0.48,"y":1.17,"w":8.6,"h":1.9,"a":-9.8,"l":3,"m":"silver"},{"id":"E","x":-0.07,"y":2.5,"w":8.4,"h":1.8,"a":8.1,"l":4,"m":"steel"}],"screws":[{"p":"C","t":-2.72,"also":["B"]},{"p":"B","t":3.16,"also":["A"]},{"p":"D","t":3.61,"also":["C"]},{"p":"A","t":-1.64},{"p":"D","t":-2.89},{"p":"E","t":-0.79},{"p":"E","t":3.27},{"p":"A","t":1.87},{"p":"C","t":2.17},{"p":"C","t":-1.46},{"p":"E","t":1.36},{"p":"B","t":0.53}]},{"plates":[{"id":"A","x":0.5,"y":-2.42,"w":9.3,"h":1.9,"a":9.1,"l":0,"m":"wood"},{"id":"B","x":-0.49,"y":-0.9,"w":8,"h":1.6,"a":-13.9,"l":1,"m":"wood"},{"id":"C","x":0.16,"y":0.57,"w":7.4,"h":1.8,"a":12.1,"l":2,"m":"silver"},{"id":"D","x":-0.12,"y":2.31,"w":7.9,"h":1.9,"a":-15.2,"l":3,"m":"steel"}],"screws":[{"p":"A","t":-0.52},{"p":"A","t":2.39},{"p":"B","t":-2.32},{"p":"B","t":1.88},{"p":"C","t":2.54},{"p":"C","t":-1.53},{"p":"D","t":-1.26},{"p":"D","t":1.15},{"p":"C","t":-0.17}]},{"plates":[{"id":"A","x":-0.21,"y":-2.73,"w":9.5,"h":2,"a":-12.1,"l":0,"m":"silver"},{"id":"B","x":-0.2,"y":-1.21,"w":8.9,"h":1.8,"a":8.5,"l":1,"m":"wood"},{"id":"C","x":0.09,"y":0.09,"w":9.5,"h":1.8,"a":-8.9,"l":2,"m":"wood"},{"id":"D","x":0.32,"y":1.3,"w":8.1,"h":1.7,"a":9.5,"l":3,"m":"silver"},{"id":"E","x":0.56,"y":2.45,"w":8.6,"h":1.6,"a":-15.1,"l":4,"m":"steel"}],"screws":[{"p":"E","t":2.63,"also":["D"]},{"p":"A","t":-3.8},{"p":"A","t":2.63},{"p":"B","t":3.49},{"p":"B","t":-1.75},{"p":"C","t":1.08},{"p":"C","t":-2.55},{"p":"D","t":-0.35},{"p":"E","t":-1.27},{"p":"E","t":-2.57},{"p":"E","t":1.26},{"p":"A","t":0.89}]},{"plates":[{"id":"A","x":-0.68,"y":-2.65,"w":9.1,"h":1.5,"a":11.7,"l":0,"m":"steel"},{"id":"B","x":-0.68,"y":-1.18,"w":7.8,"h":1.7,"a":-10.3,"l":1,"m":"wood"},{"id":"C","x":0.45,"y":0.05,"w":8.4,"h":1.9,"a":7.4,"l":2,"m":"steel"},{"id":"D","x":-0.57,"y":1.37,"w":8.6,"h":1.9,"a":-7.7,"l":3,"m":"wood"},{"id":"E","x":0.31,"y":2.52,"w":9,"h":1.6,"a":9.9,"l":4,"m":"silver"}],"screws":[{"p":"A","t":-2.96},{"p":"A","t":-1.16},{"p":"B","t":-2.42},{"p":"B","t":2.66},{"p":"C","t":-1.47},{"p":"C","t":2.66},{"p":"D","t":1.12},{"p":"D","t":-2.9},{"p":"E","t":1.49},{"p":"E","t":0.06},{"p":"E","t":-2.55},{"p":"B","t":1.34}]},{"plates":[{"id":"A","x":0.21,"y":-2.62,"w":8,"h":1.5,"a":11.4,"l":0,"m":"silver"},{"id":"B","x":0.14,"y":-1.34,"w":8.8,"h":2,"a":-8.2,"l":1,"m":"steel"},{"id":"C","x":0.41,"y":0.14,"w":8.5,"h":1.7,"a":13.4,"l":2,"m":"silver"},{"id":"D","x":0.18,"y":1.34,"w":8.4,"h":1.8,"a":-6.2,"l":3,"m":"silver"},{"id":"E","x":0.03,"y":2.62,"w":8.3,"h":1.8,"a":13,"l":4,"m":"steel"}],"screws":[{"p":"D","t":3.64,"also":["C"]},{"p":"A","t":2.57},{"p":"A","t":-1.05},{"p":"B","t":-3.01},{"p":"B","t":1.35},{"p":"C","t":-1.4},{"p":"D","t":0.53},{"p":"E","t":-0.3},{"p":"E","t":3.21},{"p":"D","t":-2.8},{"p":"A","t":-2.51},{"p":"B","t":-0.01}]},{"plates":[{"id":"A","x":-0.11,"y":-2.28,"w":9.1,"h":1.8,"a":13.9,"l":0,"m":"wood"},{"id":"B","x":-0.59,"y":-0.71,"w":9.3,"h":1.8,"a":-7.1,"l":1,"m":"silver"},{"id":"C","x":0.46,"y":0.62,"w":7.9,"h":1.9,"a":14.6,"l":2,"m":"silver"},{"id":"D","x":0.54,"y":2.39,"w":7.6,"h":1.8,"a":-15,"l":3,"m":"wood"}],"screws":[{"p":"A","t":-2.01},{"p":"A","t":-0.34},{"p":"B","t":2.13},{"p":"B","t":-1.96},{"p":"C","t":3.04},{"p":"C","t":-1.06},{"p":"D","t":1.32},{"p":"D","t":-0.52},{"p":"A","t":3.41}]},{"plates":[{"id":"A","x":-0.2,"y":-2.49,"w":8.4,"h":1.8,"a":-7.4,"l":0,"m":"silver"},{"id":"B","x":0.19,"y":-1.29,"w":7.9,"h":1.9,"a":14.2,"l":1,"m":"silver"},{"id":"C","x":-0.63,"y":0.12,"w":9.3,"h":1.6,"a":-15.1,"l":2,"m":"steel"},{"id":"D","x":0.3,"y":1.25,"w":7.7,"h":2,"a":7,"l":3,"m":"steel"},{"id":"E","x":-0.02,"y":2.7,"w":9,"h":1.9,"a":-12.9,"l":4,"m":"silver"}],"screws":[{"p":"B","t":-3.37,"also":["A"]},{"p":"C","t":3.2,"also":["B"]},{"p":"A","t":1.17},{"p":"C","t":-1.41},{"p":"D","t":-0.54},{"p":"D","t":2.84},{"p":"E","t":-1.05},{"p":"E","t":1.65},{"p":"A","t":-1.59},{"p":"E","t":0.25},{"p":"A","t":3.12},{"p":"B","t":-0.61}]},{"plates":[{"id":"A","x":0.7,"y":-2.34,"w":7.5,"h":1.8,"a":-11.7,"l":0,"m":"steel"},{"id":"B","x":0.11,"y":-0.8,"w":9.1,"h":1.8,"a":15.2,"l":1,"m":"wood"},{"id":"C","x":-0.68,"y":0.57,"w":7.9,"h":1.6,"a":-9.9,"l":2,"m":"steel"},{"id":"D","x":0.4,"y":2.1,"w":7.8,"h":1.9,"a":15.7,"l":3,"m":"silver"}],"screws":[{"p":"A","t":0.24},{"p":"A","t":-2.67},{"p":"B","t":2.05},{"p":"B","t":-0.73},{"p":"C","t":-1.99},{"p":"C","t":1.66},{"p":"D","t":0},{"p":"D","t":2.91},{"p":"D","t":1.43}]}];   // kho bố cục sinh sẵn và đã kiểm tra (do tools/gen-bank.js tạo)
 const TARGETS = [1, 1, 2, 3];
-function makeLevel(n){
-  if (n < LEVELS.length) return resolveLevel(LEVELS[n]);
-  const rng = mulberry32(n * 7919 + 13), target = TARGETS[(n - LEVELS.length) % TARGETS.length];
-  const nS = target >= 2 ? 12 : (rng() < .5 ? 9 : 12);
+function hashStr(s){ let h = 2166136261; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; }
+function makeLevelCore(seed, target, nS, fallbackIdx){
+  const rng = mulberry32(seed);
   const shuffle = a => { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(rng()*(i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
   let fallback = null, fbMin = -1;
   const tryLayout = lay => {
@@ -321,8 +344,15 @@ function makeLevel(n){
     const L = tryLayout(lay); if (L) return L;
   }
   for (const lay of [L3, mirror(L3), L2, mirror(L2)]) { const L = tryLayout(lay); if (L) return L; }     // dự phòng: bố cục làm tay
-  return fallback || resolveLevel(LEVELS[n % LEVELS.length]);
+  return fallback || resolveLevel(LEVELS[fallbackIdx % LEVELS.length]);
 }
+function makeLevel(n){
+  if (n < LEVELS.length) return resolveLevel(LEVELS[n]);
+  const target = TARGETS[(n - LEVELS.length) % TARGETS.length], seed = n * 7919 + 13, nS = target >= 2 ? 12 : (mulberry32(seed)() < .5 ? 9 : 12);
+  return makeLevelCore(seed, target, nS, n);
+}
+function makeDaily(dateStr){ return makeLevelCore(hashStr('daily-' + dateStr), 3, 12, 3); }     // thu thach hang ngay: luon kho (can du 3 lo cho), cung mot man cho moi nguoi trong ngay
+
 // ==/LEVELS==
 
 if (typeof THREE === 'undefined') {
@@ -332,8 +362,18 @@ if (typeof THREE === 'undefined') {
 /* =====================================================================
    2. ÂM THANH (WebAudio tổng hợp, không cần file) + HAPTIC
    ===================================================================== */
-let AC = null, muted = false;
-try { muted = localStorage.getItem('sj3d-muted') === '1'; } catch(e){}
+/* ---------- LUU TIEN DO (localStorage, co du phong khi bi chan) ---------- */
+const Save = (() => {
+  const KEY = 'sj3d-save', def = () => ({v:1, frontier:0, stars:{}, streak:0, bestStreak:0, bonusHammers:0, dailyDone:{}, dailyStreak:0, lastDaily:'', guideSeen:null, tips:{}, muted:false});
+  let data = null, fresh = true;
+  try { const j = JSON.parse(localStorage.getItem(KEY)); if (j && j.v === 1) { data = Object.assign(def(), j); fresh = false; } } catch(e){}
+  if (!data) {      // chuyen du lieu tu ban cu (chi luu so man va am thanh)
+    data = def();
+    try { const lv = parseInt(localStorage.getItem('sj3d-level'), 10); if (lv > 0) { data.frontier = lv; fresh = false; for (let i = 0; i < lv; i++) data.stars[i] = 1; } data.muted = localStorage.getItem('sj3d-muted') === '1'; } catch(e){}
+  }
+  return {d:data, fresh, save(){ try { localStorage.setItem(KEY, JSON.stringify(data)); } catch(e){} }};
+})();
+let AC = null, muted = Save.d.muted;
 function audio(){
   if (!AC) { try { AC = new (window.AudioContext || window.webkitAudioContext)(); } catch(e){} }
   if (AC && AC.state === 'suspended') AC.resume();
@@ -461,11 +501,11 @@ hintRing.renderOrder = 20; hintRing.visible = false; scene.add(hintRing);
    4. TRẠNG THÁI TRÒ CHƠI
    ===================================================================== */
 const MAX_SLOTS = 5, G_PEND = 20, G_FALL = 26;
-const state = {hammers:1, hammerArmed:false, mode:'play', level:0, loadId:0, openSlots:3, boxIdx:0, delivered:0, t:0, idle:0, L:null};
+const state = {kind:'level', dailyDate:'', stats:{hints:0, hammers:0, ads:0}, started:false, menuOpen:false, hammers:1, hammerArmed:false, mode:'play', level:0, loadId:0, openSlots:3, boxIdx:0, delivered:0, t:0, idle:0, L:null};
 let world = null, plates = [], screws = [], boxes = [], slots = [], confetti = [], hintTarget = null, prefetched = null;
 const QS = new URLSearchParams(location.search);
 const $ = id => document.getElementById(id);
-try { state.level = Math.max(0, parseInt(localStorage.getItem('sj3d-level') || '0', 10) || 0); } catch(e){}
+state.level = Save.d.frontier;
 if (QS.has('start')) state.level = Math.max(0, parseInt(QS.get('start'), 10) || 0);
 
 let toastTimer = 0;
@@ -480,14 +520,13 @@ const TUTORIAL = {
 };
 
 /* ---------- dựng màn chơi ---------- */
-function loadLevel(i){
-  state.loadId++; state.level = i; state.mode = 'play'; state.hammers = 1; state.hammerArmed = false; state.openSlots = 3; state.boxIdx = 0; state.delivered = 0; state.idle = 0;
-  try { if (!QS.has('auto')) localStorage.setItem('sj3d-level', String(i)); } catch(e){}
+function loadLevel(i, daily, silent){
+  state.loadId++; state.level = i; state.kind = daily ? 'daily' : 'level'; state.dailyDate = daily || ''; state.stats = {hints:0, hammers:0, ads:0}; state.mode = 'play'; state.hammers = 1; state.hammerArmed = false; state.openSlots = 3; state.boxIdx = 0; state.delivered = 0; state.idle = 0;
   if (world) { scene.remove(world); world.traverse(o => { if (o.geometry && o.userData.own) o.geometry.dispose(); }); confetti.forEach(c => c.m.material.dispose()); }
   world = new THREE.Group(); scene.add(world);
   plates = []; screws = []; boxes = []; slots = []; confetti = []; setHint(null);
 
-  const L = (prefetched && prefetched.n === i) ? prefetched.L : makeLevel(i); prefetched = null; state.L = L;
+  const L = daily ? makeDaily(daily) : ((prefetched && prefetched.n === i) ? prefetched.L : makeLevel(i)); prefetched = null; state.L = L;
   state.model = buildModel(L);       // dựng ngay khi thanh còn ở tư thế ban đầu (vật lý sẽ làm các thanh di chuyển)
 
   // tấm nền cố định (anchor plane)
@@ -513,7 +552,7 @@ function loadLevel(i){
   });
   buildTray(); buildBoxes(L.order);
   hideOverlay(); updateHud();
-  if (TUTORIAL[i]) toast(TUTORIAL[i], 4500); else $('toast').classList.remove('show');
+  if (!silent && !daily && i === Save.d.frontier && TUTORIAL[i]) toast(TUTORIAL[i], 4500); else $('toast').classList.remove('show');
 }
 
 /* ---------- khay chờ (buffer slots) ---------- */
@@ -777,13 +816,15 @@ function computeHint(){                  // nước đi tiếp theo theo bộ gi
 function armHammer(){
   if (state.mode !== 'play') return;
   if (state.hammerArmed) { state.hammerArmed = false; updateHud(); toast('Hammer put away'); return; }
-  const arm = () => { state.hammerArmed = true; updateHud(); toast('Hammer ready: tap ANY screw, even covered ones', 3500); };
-  if (state.hammers > 0) { state.hammers--; arm(); } else watchAd(arm);     // 1 búa miễn phí mỗi màn, sau đó xem quảng cáo
+  const arm = () => { state.hammerArmed = true; state.stats.hammers++; updateHud(); if (!Guide.tip('hammer')) toast('Hammer ready: tap ANY screw, even covered ones', 3500); };
+  if (state.hammers > 0) { state.hammers--; arm(); }                                   // 1 bua mien phi moi man
+  else if (Save.d.bonusHammers > 0) { Save.d.bonusHammers--; Save.save(); arm(); }     // bua thuong tu chuoi thang / thu thach ngay
+  else watchAd(() => { state.stats.ads++; arm(); });                                   // het bua: xem quang cao
 }
 function showHint(){
   if (state.mode !== 'play') return;
   const s = computeHint();
-  if (s) { setHint(s); toast('Try this screw'); }
+  if (s) { setHint(s); state.stats.hints++; if (!Guide.tip('hint')) toast('Try this screw'); }
   else toast('No safe move left. Try adding a slot!');
 }
 function isStuck(){        // thua: lỗ chờ đã đầy và không còn ốc đúng màu hộp hiện tại nào lấy được (tính theo tư thế cuối của thanh,
@@ -800,30 +841,54 @@ function evaluate(){
   const token = state.loadId;
   setTimeout(() => { if (token === state.loadId && state.mode === 'play' && isStuck()) onLose(); }, 700);
 }
+/* Sao: 3 = khong dung tro giup nao (Hint, Hammer), 2 = mot tro giup, 1 = nhieu tro giup hoac co xem quang cao */
+function starsFor(){ const s = state.stats, helps = s.hints + s.hammers + s.ads; return (s.ads > 0 || helps >= 2) ? 1 : (helps === 1 ? 2 : 3); }
+function restartCurrent(){ if (state.kind === 'daily') loadLevel(0, state.dailyDate); else loadLevel(state.level); }
 function onWin(){
   if (state.mode !== 'play') return;
   state.mode = 'won'; const token = state.loadId; setHint(null);
+  const sv = Save.d, st = starsFor(), lines = [], daily = state.kind === 'daily';
+  if (daily) {
+    const date = state.dailyDate, first = sv.dailyDone[date] == null;
+    sv.dailyDone[date] = Math.max(sv.dailyDone[date] || 0, st);
+    if (first) {
+      sv.dailyStreak = (sv.lastDaily === prevDay(date)) ? sv.dailyStreak + 1 : 1; sv.lastDaily = date; sv.bonusHammers++;
+      lines.push('📅 Daily complete! 🎁 +1 Hammer', '📆 Daily streak: ' + sv.dailyStreak + (sv.dailyStreak === 1 ? ' day' : ' days'));
+    } else lines.push('Already completed today · best ' + '★'.repeat(sv.dailyDone[date]));
+  } else {
+    const i = state.level; sv.stars[i] = Math.max(sv.stars[i] || 0, st);
+    if (i === sv.frontier) {                       // chi man moi (chua qua) moi tinh chuoi thang, choi lai man cu khong tinh
+      sv.frontier++; sv.streak++; sv.bestStreak = Math.max(sv.bestStreak, sv.streak);
+      lines.push('🔥 Win streak: ' + sv.streak);
+      if (sv.streak % 3 === 0) { sv.bonusHammers++; lines.push('🎁 3-win streak bonus: +1 Hammer!'); }
+    } else lines.push('Replay · best ' + '★'.repeat(sv.stars[i]));
+  }
+  Save.save(); updateHud();
   setTimeout(() => {
     if (token !== state.loadId) return;
     sfx.win(); haptic([30, 40, 30]);
-    setTimeout(() => { if (token === state.loadId && !prefetched) prefetched = {n:state.level + 1, L:makeLevel(state.level + 1)}; }, 80);   // tính trước màn kế tiếp khi bảng thắng đang hiện
+    if (!daily) setTimeout(() => { if (token === state.loadId && !prefetched) prefetched = {n:state.level + 1, L:makeLevel(state.level + 1)}; }, 80);   // tinh truoc man ke tiep khi bang thang dang hien
     spawnConfetti(-3, 5, 30); spawnConfetti(3, 5, 30);
-    showOverlay('Level Complete!', 'Level ' + (state.level + 1) + ' cleared. Nice!', [
-      ['Next Level ▶', 'btn', () => loadLevel(state.level + 1)],
-      ['Replay', 'btn grey', () => loadLevel(state.level)]]);
+    const extra = '<div class="winstars">' + starsHtml(st, true) + '</div><div class="winlines">' + lines.map(l => '<div>' + l + '</div>').join('') + '</div>';
+    const btns = [];
+    if (!daily) btns.push(['Next Level ▶', 'btn', () => startLevel(Math.min(state.level + 1, sv.frontier))]);
+    if (st < 3) btns.push(['★ Replay for 3 stars', 'btn amber', () => restartCurrent()]);
+    btns.push(['Menu', 'btn grey', () => { hideOverlay(); openMenu(); }]);
+    showOverlay(daily ? 'Daily Complete!' : 'Level Complete!', daily ? state.dailyDate : 'Level ' + (state.level + 1) + ' cleared. Nice!', btns, extra);
   }, 900);
-  updateHud();
 }
 function onLose(){
   state.mode = 'lost'; setHint(null); state.hammerArmed = false; sfx.buzz();
-  const btns = [];
+  const sv = Save.d, atRisk = state.kind === 'level' && state.level === sv.frontier && sv.streak > 0, btns = [];
   if (state.openSlots < MAX_SLOTS) btns.push(['▶ Watch Ad: +1 Slot', 'btn', () => watchAd(addHole)]);
-  btns.push(['Try Again', 'btn red', () => loadLevel(state.level)]);
-  showOverlay('Out of space!', 'All slots are full and no screw matches the box.', btns);
+  btns.push(['Try Again', 'btn red', () => { if (atRisk) resetStreak(); restartCurrent(); }]);
+  btns.push(['Menu', 'btn grey', () => { if (atRisk) resetStreak(); hideOverlay(); openMenu(); }]);
+  showOverlay('Out of space!', 'All slots are full and no screw matches the box.' + (atRisk ? ' Your 🔥 ' + sv.streak + ' streak is at risk. Keep it alive with an extra slot!' : ''), btns);
   updateHud();
 }
 function addHole(){
   if (state.openSlots >= MAX_SLOTS) return;
+  state.stats.ads++;
   state.openSlots++; refreshSlots(); updateHud(); toast('+1 slot unlocked!');
 }
 /* ---------- QUẢNG CÁO THƯỞNG ----------
@@ -861,8 +926,8 @@ function watchAd(reward){
   Ads.showRewarded(() => { if (token !== state.loadId) return; hideOverlay(); state.mode = 'play'; reward(); updateHud(); evaluate(); },
                    () => { toast('Ad not available right now. Try again later.'); back(); });
 }
-function showOverlay(title, text, btns){
-  $('ovTitle').textContent = title; $('ovText').textContent = text;
+function showOverlay(title, text, btns, extra){
+  $('ovTitle').textContent = title; $('ovText').textContent = text; $('ovExtra').innerHTML = extra || '';
   const box = $('ovBtns'); box.innerHTML = '';
   btns.forEach(([label, cls, fn]) => { const b = document.createElement('button'); b.className = cls; b.textContent = label; b.onclick = fn; box.appendChild(b); });
   $('overlay').classList.add('show');
@@ -870,23 +935,95 @@ function showOverlay(title, text, btns){
 function hideOverlay(){ $('overlay').classList.remove('show'); }
 function updateHud(){
   const left = screws.filter(s => !s.removed).length;
-  $('level').textContent = 'LEVEL ' + String(state.level + 1).padStart(2, '0');
-  $('sub').textContent = left + (left === 1 ? ' screw left' : ' screws left');
+  const daily = state.kind === 'daily';
+  $('level').textContent = daily ? 'DAILY' : 'LEVEL ' + String(state.level + 1).padStart(2, '0');
+  $('sub').textContent = (daily ? state.dailyDate + ' · ' : '') + left + (left === 1 ? ' screw left' : ' screws left') + (!daily && Save.d.streak > 0 ? ' · 🔥' + Save.d.streak : '');
   $('holes').textContent = 'Slots ' + state.openSlots + '/' + MAX_SLOTS;
   const play = state.mode === 'play';
   $('addHole').disabled = !play || state.openSlots >= MAX_SLOTS;
   $('hintBtn').disabled = !play;
   $('hammerBtn').disabled = !play;
   $('hammerBtn').classList.toggle('armed', state.hammerArmed);
-  $('hammerBadge').textContent = state.hammers > 0 ? String(state.hammers) : 'Ad';
+  const hm = state.hammers + Save.d.bonusHammers; $('hammerBadge').textContent = hm > 0 ? String(hm) : 'Ad';
 }
 $('addHole').onclick = () => { if (state.mode === 'play' && state.openSlots < MAX_SLOTS) watchAd(addHole); };
 $('hintBtn').onclick = showHint;
 $('hammerBtn').onclick = armHammer;
-$('replay').onclick = () => { if (state.mode !== 'ad') loadLevel(state.level); };
-function paintSound(){ $('sound').textContent = muted ? '🔇' : '🔊'; }
-$('sound').onclick = () => { muted = !muted; try { localStorage.setItem('sj3d-muted', muted ? '1' : '0'); } catch(e){} paintSound(); audio(); };
-paintSound();
+$('replay').onclick = () => {      // choi lai: neu da thao oc o man moi dang choi thi chuoi thang bi ngat
+  if (state.mode === 'ad') return;
+  if (state.mode === 'play' && state.kind === 'level' && state.level === Save.d.frontier && screws.some(s => s.removed)) resetStreak();
+  restartCurrent();
+};
+$('menuBtn').onclick = () => { if (state.mode !== 'ad') openMenu(); };
+
+/* =====================================================================
+   7b. MENU CHINH, DANH SACH MAN, THU THACH HANG NGAY, HUONG DAN
+   HUONG DAN TU MO RONG: khi them tinh nang moi chi can them 1 muc vao GUIDE ben duoi. Muc do tu xuat hien trong
+   "How to Play" kem nhan NEW, va nguoi choi cu se thay ghi chu "New:" o menu cho toi khi ho mo huong dan.
+   ===================================================================== */
+const GUIDE = [
+  {id:'basics', group:'Basics', icon:'👆', title:'Unscrew', text:'Tap a screw to unscrew it. Screws hidden under a plate can\'t be reached until the plate above is gone.'},
+  {id:'match', group:'Basics', icon:'📦', title:'Fill the boxes', text:'A screw that matches the top box flies in. Other colors wait in the slots below. 3 screws fill a box and open the next one.'},
+  {id:'jam', group:'Basics', icon:'🚫', title:'Don\'t get jammed', text:'If every slot is full and no free screw matches the box, you\'re jammed. Plan your order!'},
+  {id:'plates', group:'Basics', icon:'⬇️', title:'Falling plates', text:'Take a plate\'s last screw and it falls. With one screw left it swings and can cover other screws.'},
+  {id:'colors', group:'Basics', icon:'🎨', title:'Colors and shapes', text:'Every color has its own shape too (+ − ▲ ● ◆), so you never need to rely on color alone.'},
+  {id:'hint', group:'Tools', icon:'💡', title:'Hint', text:'Shows a safe screw to tap next. Counts as one help.'},
+  {id:'hammer', group:'Tools', icon:'🔨', title:'Hammer', text:'Smash ANY screw, even a covered one. One free hammer per level, then watch an ad. Counts as one help.'},
+  {id:'slot', group:'Tools', icon:'➕', title:'Extra slot', text:'Watch an ad to unlock one more waiting slot (up to 5). Counts as a help.'},
+  {id:'stars', group:'Progress', icon:'⭐', title:'Stars', text:'3 stars = no help used, 2 = one help, 1 = more helps or an ad. Open Levels to replay any level and earn more stars.'},
+  {id:'streak', group:'Progress', icon:'🔥', title:'Win streak', text:'Win new levels in a row. Every 3 wins gives +1 Hammer. A loss, or restarting after you\'ve started, breaks the streak. Replaying old levels doesn\'t count.'},
+  {id:'daily', group:'Progress', icon:'📅', title:'Daily Challenge', text:'A new hard puzzle every day. Win it for +1 Hammer and to grow your daily streak (play on consecutive days).'}
+];
+const Guide = {
+  unseen(){ const seen = Save.d.guideSeen || []; return GUIDE.filter(g => !seen.includes(g.id)); },
+  markAllSeen(){ Save.d.guideSeen = GUIDE.map(g => g.id); Save.save(); },
+  tip(id){ if (Save.d.tips[id]) return false; Save.d.tips[id] = 1; Save.save(); const g = GUIDE.find(x => x.id === id); if (!g) return false; toast(g.icon + ' ' + g.title + ': ' + g.text, 5500); return true; }
+};
+function pad2(n){ return String(n).padStart(2, '0'); }
+function todayStr(){ if (QS.get('day')) return QS.get('day'); const d = new Date(); return d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate()); }
+function prevDay(s){ const [y, m, d] = s.split('-').map(Number), t = new Date(Date.UTC(y, m - 1, d - 1)); return t.getUTCFullYear() + '-' + pad2(t.getUTCMonth() + 1) + '-' + pad2(t.getUTCDate()); }
+const starsHtml = (n, big) => '<span class="stars' + (big ? ' big' : '') + '">' + [1, 2, 3].map(k => k <= n ? '★' : '☆').join('') + '</span>';
+const totalStars = () => Object.values(Save.d.stars).reduce((a, b) => a + b, 0);
+function resetStreak(){ if (Save.d.streak > 0) { Save.d.streak = 0; Save.save(); } }
+const screenEl = $('screen');
+function setScreen(html, handlers){
+  screenEl.innerHTML = '<div class="panel">' + html + '</div>'; screenEl.classList.add('show'); screenEl.scrollTop = 0;
+  for (const sel in handlers) { const el = screenEl.querySelector(sel); if (el) el.onclick = handlers[sel]; }
+}
+function hideScreen(){ screenEl.classList.remove('show'); state.menuOpen = false; }
+function startLevel(i){ state.started = true; hideScreen(); hideOverlay(); loadLevel(i); }
+function startDaily(){ state.started = true; hideScreen(); hideOverlay(); loadLevel(0, todayStr()); }
+function openMenu(){
+  state.menuOpen = true; const sv = Save.d, today = todayStr(), doneToday = sv.dailyDone[today] != null;
+  const fresh = Guide.unseen(), dot = fresh.length ? '<span class="dot"></span>' : '';
+  const note = (sv.guideSeen !== null && fresh.length) ? '<div class="note">🆕 <b>New:</b> ' + fresh.map(g => g.icon + ' ' + g.title).join(', ') + '<button id="mSee" class="btn amber" style="margin-top:8px;padding:8px">See what\'s new</button></div>' : '';
+  setScreen(
+    '<img class="logo" src="icons/icon-192.png" alt=""><h1>Screw Jam 3D</h1><div class="tag">Nuts &amp; Bolts</div>' + note +
+    '<div class="chips"><span class="chip">🔥 Streak ' + sv.streak + '</span><span class="chip">⭐ ' + totalStars() + '</span>' + (sv.dailyStreak ? '<span class="chip">📅 ' + sv.dailyStreak + '-day</span>' : '') + '</div>' +
+    (state.started ? '<button id="mResume" class="btn grey">↩ Resume</button>' : '') +
+    '<button id="mPlay" class="btn big">▶ Play · Level ' + (sv.frontier + 1) + '</button>' +
+    '<button id="mDaily" class="btn hammer">📅 Daily Challenge ' + (doneToday ? '· ✓ ' + starsHtml(sv.dailyDone[today]) : '· NEW') + '</button>' +
+    '<div class="row"><button id="mLevels" class="btn amber">⭐ Levels</button><button id="mGuide" class="btn grey">📖 How to Play' + dot + '</button></div>' +
+    '<button id="mSound" class="btn grey">' + (muted ? '🔇 Sound: Off' : '🔊 Sound: On') + '</button>',
+    {'#mResume': hideScreen, '#mPlay': () => startLevel(sv.frontier), '#mDaily': startDaily, '#mLevels': openLevels, '#mGuide': openGuide, '#mSee': openGuide,
+     '#mSound': () => { muted = !muted; Save.d.muted = muted; Save.save(); audio(); openMenu(); }});
+}
+function openLevels(){
+  const sv = Save.d; let cells = '';
+  for (let i = 0; i <= sv.frontier; i++) cells += '<button class="lv' + (i === sv.frontier ? ' new' : '') + '" data-i="' + i + '">' + (i + 1) + '<small>' + (i === sv.frontier ? 'NEW' : starsHtml(sv.stars[i] || 1)) + '</small></button>';
+  setScreen('<h2>Levels</h2><p class="subtle">Tap a level to play it again and earn more stars. 3 stars = no help used.</p><div class="lvgrid">' + cells + '</div><button id="lBack" class="btn grey">Back</button>', {'#lBack': openMenu});
+  screenEl.querySelectorAll('.lv').forEach(b => { b.onclick = () => startLevel(+b.dataset.i); });
+  const cur = screenEl.querySelector('.lv.new'); if (cur && cur.scrollIntoView) cur.scrollIntoView({block:'center'});
+}
+function openGuide(){
+  const unseen = new Set(Guide.unseen().map(g => g.id)); let html = '<h2>How to Play</h2>', grp = '';
+  GUIDE.forEach(g => {
+    if (g.group !== grp) { grp = g.group; html += '<div class="ghead">' + grp.toUpperCase() + '</div>'; }
+    html += '<div class="gcard"><b>' + g.icon + ' ' + g.title + '</b>' + (unseen.has(g.id) ? '<span class="new-badge">NEW</span>' : '') + '<p>' + g.text + '</p></div>';
+  });
+  setScreen(html + '<button id="gBack" class="btn">Back</button>', {'#gBack': openMenu});
+  Guide.markAllSeen();
+}
 
 /* =====================================================================
    8. VÒNG LẶP TRÒ CHƠI
@@ -958,11 +1095,13 @@ async function runAuto(){
   log();
 }
 
-loadLevel(state.level);
+const direct = QS.has('auto') || (QS.has('debug') && !QS.has('menu'));      // cong cu kiem thu vao thang man choi; nguoi choi thuong vao menu chinh
+loadLevel(state.level, undefined, !direct);          // dung san man nen (khong hien goi y khi dang o menu)
 requestAnimationFrame(frame);
+if (direct) state.started = true; else openMenu();
 if ('serviceWorker' in navigator && /^https?:/.test(location.protocol) && !QS.has('auto') && !QS.has('debug')) navigator.serviceWorker.register('sw.js').catch(() => {});   // cài lên màn hình chính + chơi offline
 if (QS.has('auto')) runAuto();
-if (QS.has('auto') || QS.has('debug')) window.__sj = {state, loadLevel, makeLevel, solvePath, pullScrew, showHint, watchAd, addHole, blockerOf, armHammer, clickScrew, get hintVisible(){ return hintRing.visible; }, get info(){ return renderer.info.memory; }, get slots(){ return slots; }, get boxes(){ return boxes; }, get screws(){ return screws; }, get plates(){ return plates; }};
+if (QS.has('auto') || QS.has('debug')) window.__sj = {Save, Guide, GUIDE, openMenu, openLevels, openGuide, startLevel, startDaily, todayStr, starsFor, makeDaily, resetStreak, restartCurrent, state, loadLevel, makeLevel, solvePath, pullScrew, showHint, watchAd, addHole, blockerOf, armHammer, clickScrew, get hintVisible(){ return hintRing.visible; }, get info(){ return renderer.info.memory; }, get slots(){ return slots; }, get boxes(){ return boxes; }, get screws(){ return screws; }, get plates(){ return plates; }};
 
 })();
 </script>

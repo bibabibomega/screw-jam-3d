@@ -4,10 +4,9 @@
 Các câu trả lời bên dưới dựa trên đúng những gì game làm hôm nay (bản demo chưa có quảng cáo thật). Khi gắn AdMob thật, dùng cột "Khi có AdMob".
 
 ## 1. Chính sách quyền riêng tư (bắt buộc khi có quảng cáo)
-- File nháp: `legal/privacy-policy.html` (tiếng Anh). **Bạn cần điền** `[DEVELOPER NAME]` và `[CONTACT EMAIL]`, rồi xóa khung vàng.
-  Tôi cố ý không điền email của bạn vì trang sẽ công khai trên mạng.
-- Sau khi điền, đưa lên một URL công khai (ví dụ `https://bibabibomega.github.io/screw-jam-3d/legal/privacy-policy.html`)
-  và dán URL đó vào Play Console / App Store Connect.
+- File: `legal/privacy-policy.html` (tiếng Anh), đã điền email liên hệ `simso688@gmail.com`. Trang này công khai trên mạng nên email sẽ hiển thị cho mọi người; nếu muốn đổi sang email khác, sửa file rồi đẩy lại.
+- Chính sách không ghi tên pháp nhân. Nếu bạn đăng ký tài khoản nhà phát triển bằng tên cá nhân hoặc công ty, hãy thêm tên đó vào câu đầu cho khớp.
+- URL công khai để dán vào Play Console / App Store Connect: `https://bibabibomega.github.io/screw-jam-3d/legal/privacy-policy.html`
 - Game đã bỏ Google Fonts (font nằm trong `lib/fonts`) nên không còn gửi IP người chơi cho Google qua font.
 
 ## 2. Google Play: Data safety

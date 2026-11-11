@@ -1,5 +1,5 @@
 /* Service worker: lưu game vào máy để chơi offline. Tăng VERSION mỗi khi phát hành bản mới để người chơi nhận được bản cập nhật. */
-const VERSION = 'sj3d-v2';
+const VERSION = 'sj3d-v3';
 const FILES = ['index.html', 'lib/three.min.js', 'lib/fonts/fredoka.woff2', 'manifest.webmanifest', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/icon-180.png'];
 self.addEventListener('install', e => { e.waitUntil(caches.open(VERSION).then(c => c.addAll(FILES)).then(() => self.skipWaiting())); });
 self.addEventListener('activate', e => { e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k !== VERSION).map(k => caches.delete(k)))).then(() => self.clients.claim())); });

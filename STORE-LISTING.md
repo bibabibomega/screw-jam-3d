@@ -27,6 +27,8 @@ HOW TO PLAY
 FEATURES
 • Satisfying 3D physics: plates swing on their last bolt and fall with real gravity.
 • Endless levels: every level is checked to be solvable, from relaxed warm-ups to real brain-burners.
+• Daily Challenge: a new hard puzzle every day, plus a daily streak.
+• Win streaks and 3-star ratings: replay any level to beat your best.
 • Smooth, clicky sounds and gentle haptics.
 • Works offline. No account, no sign-up.
 • Color-blind friendly: every color has its own shape.
@@ -41,9 +43,9 @@ screw jam, nuts and bolts, screw puzzle, unscrew, pin puzzle, sort puzzle, logic
 - Kept: title, short-description approach, offline claim (the build now bundles Three.js, so it works without internet),
   haptics, satisfying-sound angle, screenshot headline ideas.
 - Changed: the pasted text promised Drill, Shuffle and Extra Hole boosters, "100+ levels" and "new content added weekly".
-  The build has Hint, Hammer and +1 Slot only, and levels are generated without a fixed count. The text above says only what exists.
-- Not used as written: win-streak rewards, Daily Challenge, hearts/energy, push notifications, skins. These are product
-  ideas, not features yet. Add them to the listing only after they ship.
+  The build has Hint, Hammer and +1 Slot, plus stars, win streaks and a Daily Challenge, and levels are generated without a fixed count. The text above says only what exists.
+- Now implemented from your list: win streak (every 3 wins = +1 Hammer) and Daily Challenge (+1 Hammer, daily streak).
+- Still not features, so not in the listing: hearts/energy, push notifications, skins, treasure chests.
 - Ad creative "Only people with IQ above 120 can solve this" is a risky claim. Google Ads and the Play policy on
   misleading ads can reject it. Prefer "Can you solve this?" style hooks.
 
